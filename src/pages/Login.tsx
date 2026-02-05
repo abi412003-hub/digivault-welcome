@@ -82,23 +82,16 @@ const Login = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Check if profile exists
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", data.user.id)
-          .maybeSingle();
+        // Upsert profile: insert if not exists, only fill missing values if exists
+        const { error: upsertError } = await supabase.rpc('upsert_profile_safe', {
+          p_id: data.user.id,
+          p_phone: formattedPhone,
+          p_role: 'client',
+          p_user_type: 'individual'
+        });
 
-        // If no profile exists, create one
-        if (!profile) {
-          const { error: insertError } = await supabase.from("profiles").insert({
-            id: data.user.id,
-            role: "client",
-            user_type: "individual",
-            phone: formattedPhone,
-          });
-
-          if (insertError) throw insertError;
+        if (upsertError) {
+          console.error('Profile upsert error:', upsertError);
         }
 
         toast({
