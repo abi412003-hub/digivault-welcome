@@ -82,41 +82,32 @@ const Login = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Upsert profile: insert if not exists, only fill missing values if exists
-        const { data: existingProfile } = await supabase
+        // Call ensure_profile RPC to create/update profile with safe defaults
+        const { error: rpcError } = await supabase.rpc('ensure_profile');
+        
+        if (rpcError) {
+          console.error('Profile ensure error:', rpcError);
+        }
+
+        // Fetch the user's profile
+        const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, phone, role, user_type")
+          .select("*")
           .eq("id", data.user.id)
           .maybeSingle();
 
-        if (!existingProfile) {
-          // Insert new profile
-          await supabase.from("profiles").insert({
-            id: data.user.id,
-            phone: formattedPhone,
-            role: "client",
-            user_type: "individual",
-          });
-        } else {
-          // Update only missing (null) values
-          const updates: Record<string, string> = {};
-          if (!existingProfile.phone) updates.phone = formattedPhone;
-          if (!existingProfile.role) updates.role = "client";
-          if (!existingProfile.user_type) updates.user_type = "individual";
-
-          if (Object.keys(updates).length > 0) {
-            await supabase
-              .from("profiles")
-              .update(updates)
-              .eq("id", data.user.id);
-          }
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
         }
+
+        console.log('User profile:', profile);
 
         toast({
           title: "Success",
           description: "Welcome to e-DigiVault!",
         });
 
+        // Navigate to Client Dashboard
         navigate("/dashboard");
       }
     } catch (error: any) {
