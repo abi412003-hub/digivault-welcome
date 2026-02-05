@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, FileUp, Shield, BarChart3 } from "lucide-react";
+import { ArrowRight, ChevronLeft } from "lucide-react";
+import onboardingUpload from "@/assets/onboarding-upload.png";
+import onboardingSecure from "@/assets/onboarding-secure.png";
+import onboardingTrack from "@/assets/onboarding-track.png";
 
 type OnboardingScreen = "splash" | "screen1" | "screen2" | "screen3";
 
@@ -32,6 +35,20 @@ const Onboarding = () => {
     }
   };
 
+  const handleBack = () => {
+    switch (currentScreen) {
+      case "screen2":
+        setCurrentScreen("screen1");
+        break;
+      case "screen3":
+        setCurrentScreen("screen2");
+        break;
+      default:
+        navigate("/");
+        break;
+    }
+  };
+
   const handleSkip = () => {
     navigate("/register");
   };
@@ -41,12 +58,14 @@ const Onboarding = () => {
     const currentIndex = screens.indexOf(currentScreen);
     
     return (
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center">
         {screens.map((_, index) => (
           <div
             key={index}
-            className={`w-2 h-2 rounded-full transition-colors duration-300 ${
-              index === currentIndex ? "bg-primary" : "bg-muted-foreground/30"
+            className={`rounded-full transition-all duration-300 ${
+              index === currentIndex 
+                ? "w-2.5 h-2.5 bg-primary" 
+                : "w-2 h-2 bg-primary/30"
             }`}
           />
         ))}
@@ -58,7 +77,7 @@ const Onboarding = () => {
   if (currentScreen === "splash") {
     return (
       <div className="min-h-screen bg-primary flex flex-col items-center justify-center px-6">
-        <h1 className="text-4xl font-bold text-brand-accent tracking-tight">
+        <h1 className="text-4xl font-bold text-brand-accent tracking-tight animate-fade-in">
           e-DigiVault
         </h1>
       </div>
@@ -68,52 +87,56 @@ const Onboarding = () => {
   // Content screens data
   const screenData = {
     screen1: {
-      icon: FileUp,
+      image: onboardingUpload,
       title: "Upload with Confidence",
-      subtitle: "Moderators can securely upload documents with detailed metadata.",
-      iconBg: "bg-primary/10",
-      iconColor: "text-primary",
+      subtitle: '"Moderators can securely upload documents with detailed metadata."',
     },
     screen2: {
-      icon: Shield,
+      image: onboardingSecure,
       title: "Safe and Secure",
-      subtitle: "In-Charge roles review, verify, or reject documents transparently.",
-      iconBg: "bg-status-success-light",
-      iconColor: "text-status-success",
+      subtitle: '"In-Charge roles review, verify, or reject documents—transparently."',
     },
     screen3: {
-      icon: BarChart3,
+      image: onboardingTrack,
       title: "Track Your Work",
-      subtitle: "Clients can check statuses, view, download, and share verified documents anytime.",
-      iconBg: "bg-status-warning-light",
-      iconColor: "text-status-warning",
+      subtitle: '"Clients can check statuses, view, download, and share verified documents anytime."',
     },
   };
 
   const data = screenData[currentScreen];
-  const IconComponent = data.icon;
 
   return (
     <div className="min-h-screen bg-background flex flex-col px-6 py-8">
-      {/* Skip Button */}
-      <div className="flex justify-end">
+      {/* Header with Back and Skip */}
+      <div className="flex justify-between items-center">
+        <button
+          onClick={handleBack}
+          className="w-10 h-10 flex items-center justify-center text-foreground hover:text-muted-foreground transition-colors"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+        
         <button
           onClick={handleSkip}
-          className="text-muted-foreground text-sm font-medium hover:text-foreground transition-colors"
+          className="px-4 py-1.5 text-primary text-sm font-medium border border-primary/20 rounded-full hover:bg-primary/5 transition-colors"
         >
           Skip
         </button>
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center -mt-16">
+      <div className="flex-1 flex flex-col items-center justify-center -mt-8">
         {/* Illustration */}
-        <div className={`w-32 h-32 ${data.iconBg} rounded-full flex items-center justify-center mb-10`}>
-          <IconComponent className={`w-16 h-16 ${data.iconColor}`} />
+        <div className="w-full max-w-xs mb-10">
+          <img 
+            src={data.image} 
+            alt={data.title}
+            className="w-full h-auto object-contain animate-fade-in"
+          />
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-foreground text-center mb-4">
+        <h1 className="text-2xl font-bold text-primary text-center mb-4">
           {data.title}
         </h1>
 
@@ -125,17 +148,16 @@ const Onboarding = () => {
 
       {/* Bottom Section */}
       <div className="flex flex-col items-center gap-6 pb-8">
-        {/* Progress Dots */}
-        {getProgressDots()}
-
-        {/* Next Button */}
+        {/* Next Button - Ring style */}
         <button
           onClick={handleNext}
-          className="w-14 h-14 bg-primary rounded-full flex items-center justify-center shadow-lg hover:opacity-90 active:scale-95 transition-all duration-200"
-          style={{ boxShadow: "var(--shadow-soft)" }}
+          className="w-16 h-16 rounded-full flex items-center justify-center border-4 border-primary bg-transparent hover:bg-primary/5 active:scale-95 transition-all duration-200"
         >
-          <ArrowRight className="w-6 h-6 text-primary-foreground" />
+          <ArrowRight className="w-6 h-6 text-primary" />
         </button>
+
+        {/* Progress Dots */}
+        {getProgressDots()}
       </div>
     </div>
   );
