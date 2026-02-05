@@ -29,19 +29,7 @@ const CreateProject = () => {
 
     setLoading(true);
 
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      toast({
-        title: "Error",
-        description: "You must be logged in to create a project",
-        variant: "destructive",
-      });
-      setLoading(false);
-      return;
-    }
-
     const { error } = await supabase.from("projects").insert({
-      owner_id: userData.user.id,
       title: title.trim(),
       description: description.trim() || null,
     });
@@ -58,7 +46,7 @@ const CreateProject = () => {
         title: "Success",
         description: "Project created successfully!",
       });
-      navigate("/projects");
+      navigate("/projects", { state: { refresh: true } });
     }
 
     setLoading(false);
