@@ -9,6 +9,9 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import CreateProject from "./pages/CreateProject";
 import Settings from "./pages/Settings";
+import Proposals from "./pages/Proposals";
+import Estimate from "./pages/Estimate";
+import Invoice from "./pages/Invoice";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +29,9 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/create" element={<CreateProject />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/proposals" element={<Proposals />} />
+          <Route path="/estimate" element={<Estimate />} />
+          <Route path="/invoice" element={<Invoice />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

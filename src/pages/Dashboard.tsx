@@ -1,21 +1,47 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, FileText, Shield, User } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle, Clock, Hourglass, ChevronRight, FileText, Calculator, Receipt } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
-interface Profile {
-  id: string;
-  role: string;
-  user_type: string;
-  phone: string | null;
-}
+
+const statusCards = [
+  { label: "Completed", count: 2, icon: CheckCircle, color: "text-green-600", bg: "bg-green-50" },
+  { label: "Ongoing", count: 6, icon: Hourglass, color: "text-blue-600", bg: "bg-blue-50" },
+  { label: "Pending", count: 2, icon: Clock, color: "text-orange-500", bg: "bg-orange-50" },
+];
+
+const actionButtons = [
+  { label: "Proposals", icon: FileText, path: "/proposals" },
+  { label: "Estimate", icon: Calculator, path: "/estimate" },
+  { label: "Invoice", icon: Receipt, path: "/invoice" },
+];
+
+const activities = [
+  { title: "E-khatha Certificate", date: "08 Apr 2025", status: "Completed" },
+  { title: "Khatha Certificate", date: "06 Apr 2025", status: "Ongoing" },
+  { title: "Khatha Extract", date: "05 Apr 2025", status: "Pending" },
+  { title: "Tax Paid Receipt", date: "05 Apr 2025", status: "Pending" },
+];
+
+const getStatusBadgeStyles = (status: string) => {
+  switch (status) {
+    case "Completed":
+      return "bg-green-100 text-green-700 hover:bg-green-100";
+    case "Ongoing":
+      return "bg-blue-100 text-blue-700 hover:bg-blue-100";
+    case "Pending":
+      return "bg-orange-100 text-orange-700 hover:bg-orange-100";
+    default:
+      return "";
+  }
+};
 
 const Dashboard = () => {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -25,19 +51,6 @@ const Dashboard = () => {
         navigate("/");
         return;
       }
-
-      // Fetch profile
-      const { data: profileData, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching profile:", error);
-      }
-
-      setProfile(profileData);
       setIsLoading(false);
     };
 
@@ -52,115 +65,95 @@ const Dashboard = () => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out",
-      });
-      navigate("/");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: "Failed to log out",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center">
         <div className="animate-pulse text-muted-foreground">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="bg-card border-b border-border px-6 py-4">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-              <Shield className="w-5 h-5 text-primary" />
-            </div>
-            <span className="font-semibold text-foreground">e-DigiVault</span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-lg hover:bg-muted"
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="text-sm font-medium">Logout</span>
-          </button>
+    <div className="min-h-screen bg-muted/30 pb-24">
+      <div className="p-4 space-y-6">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-muted-foreground text-sm">Welcome back!</p>
         </div>
-      </header>
 
-      {/* Main Content */}
-      <main className="px-6 py-8">
-        <div className="max-w-lg mx-auto space-y-6">
-          {/* Welcome Card */}
-          <div className="card-container">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="w-12 h-12 bg-accent rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-accent-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">
-                  Client Dashboard
-                </h1>
-                <p className="text-muted-foreground text-sm">
-                  {profile?.phone || "Welcome back"}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-4 text-sm">
-              <span className="bg-primary/10 text-primary px-3 py-1 rounded-full font-medium">
-                {profile?.role || "client"}
-              </span>
-              <span className="bg-muted text-muted-foreground px-3 py-1 rounded-full">
-                {profile?.user_type || "individual"}
-              </span>
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="grid grid-cols-2 gap-4">
-            <button className="card-container hover:border-primary/50 border border-transparent transition-colors text-left">
-              <FileText className="w-8 h-8 text-primary mb-3" />
-              <h3 className="font-semibold text-foreground">My Documents</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                View & manage
-              </p>
-            </button>
-            <button className="card-container hover:border-primary/50 border border-transparent transition-colors text-left">
-              <Shield className="w-8 h-8 text-primary mb-3" />
-              <h3 className="font-semibold text-foreground">Security</h3>
-              <p className="text-sm text-muted-foreground mt-1">
-                Settings & logs
-              </p>
-            </button>
-          </div>
-
-          {/* Empty State */}
-          <div className="card-container text-center py-12">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="font-semibold text-foreground mb-2">
-              No documents yet
-            </h3>
-            <p className="text-muted-foreground text-sm mb-6">
-              Your secure documents will appear here
-            </p>
-            <button className="btn-primary max-w-xs mx-auto">
-              Upload Document
-            </button>
-          </div>
+        {/* Status Cards */}
+        <div className="grid grid-cols-3 gap-3">
+          {statusCards.map((card) => (
+            <Card key={card.label} className="shadow-sm border-0">
+              <CardContent className="p-3 flex flex-col items-center text-center">
+                <div className={`w-10 h-10 rounded-full ${card.bg} flex items-center justify-center mb-2`}>
+                  <card.icon className={`w-5 h-5 ${card.color}`} />
+                </div>
+                <span className="text-2xl font-bold text-foreground">{card.count}</span>
+                <span className="text-xs text-muted-foreground">{card.label}</span>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </main>
+
+        {/* Projects Card */}
+        <Card 
+          className="shadow-sm border-0 cursor-pointer hover:shadow-md transition-shadow"
+          onClick={() => navigate("/projects")}
+        >
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+              <span className="font-semibold text-foreground">Projects</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-foreground">02</span>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Action Buttons */}
+        <div className="grid grid-cols-3 gap-3">
+          {actionButtons.map((action) => (
+            <Button
+              key={action.label}
+              variant="default"
+              className="flex flex-col h-auto py-4 gap-2"
+              onClick={() => navigate(action.path)}
+            >
+              <action.icon className="w-5 h-5" />
+              <span className="text-xs font-medium">{action.label}</span>
+            </Button>
+          ))}
+        </div>
+
+        {/* All Activity Section */}
+        <div className="space-y-3">
+          <h2 className="text-lg font-semibold text-foreground">All Activity</h2>
+          <Card className="shadow-sm border-0 overflow-hidden">
+            <CardContent className="p-0">
+              <div className="divide-y divide-border">
+                {activities.map((activity, index) => (
+                  <div key={index} className="p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{activity.title}</p>
+                      <p className="text-xs text-muted-foreground">{activity.date}</p>
+                    </div>
+                    <Badge className={`ml-2 ${getStatusBadgeStyles(activity.status)}`}>
+                      {activity.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+
       <BottomNav />
     </div>
   );
