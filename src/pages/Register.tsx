@@ -1,0 +1,222 @@
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Shield } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const Register = () => {
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const formatPhoneNumber = (phoneNumber: string) => {
+    const digits = phoneNumber.replace(/\D/g, "");
+    if (!phoneNumber.startsWith("+")) {
+      return `+91${digits}`;
+    }
+    return `+${digits}`;
+  };
+
+  const handleSendOtp = async () => {
+    if (!phone.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid mobile number",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    const formattedPhone = formatPhoneNumber(phone);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        phone: formattedPhone,
+      });
+
+      if (error) throw error;
+
+      setIsOtpSent(true);
+      toast({
+        title: "OTP Sent",
+        description: "Please check your phone for the verification code",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send OTP",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otp.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter the OTP",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    const formattedPhone = formatPhoneNumber(phone);
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formattedPhone,
+        token: otp,
+        type: "sms",
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        // Check if profile exists
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("id", data.user.id)
+          .maybeSingle();
+
+        // If no profile exists, create one
+        if (!profile) {
+          const { error: insertError } = await supabase.from("profiles").insert({
+            id: data.user.id,
+            role: "client",
+            user_type: "individual",
+            phone: formattedPhone,
+          });
+
+          if (insertError) throw insertError;
+        }
+
+        toast({
+          title: "Welcome!",
+          description: "Your account has been created successfully",
+        });
+
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to verify OTP",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="flex justify-center mb-8">
+          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+            <Shield className="w-8 h-8 text-primary" />
+          </div>
+        </div>
+
+        {/* Title */}
+        <div className="text-center mb-10">
+          <h1 className="text-2xl font-bold text-foreground mb-2">
+            Create Account
+          </h1>
+          <p className="text-muted-foreground">Join e-DigiVault today</p>
+        </div>
+
+        {/* Form */}
+        <div className="space-y-6">
+          {!isOtpSent ? (
+            <>
+              <div>
+                <label
+                  htmlFor="phone"
+                  className="block text-sm font-medium text-foreground mb-2"
+                >
+                  Mobile Number
+                </label>
+                <input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Enter your mobile number"
+                  className="input-field"
+                  disabled={isLoading}
+                />
+              </div>
+
+              <button
+                onClick={handleSendOtp}
+                disabled={isLoading}
+                className="btn-primary"
+              >
+                {isLoading ? "Sending..." : "Send OTP"}
+              </button>
+            </>
+          ) : (
+            <>
+              <div>
+                <label
+                  htmlFor="otp"
+                  className="block text-sm font-medium text-foreground mb-2"
+                >
+                  Enter OTP
+                </label>
+                <input
+                  id="otp"
+                  type="text"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value)}
+                  placeholder="Enter 6-digit OTP"
+                  className="input-field text-center tracking-widest text-lg"
+                  maxLength={6}
+                  disabled={isLoading}
+                />
+              </div>
+
+              <button
+                onClick={handleVerifyOtp}
+                disabled={isLoading}
+                className="btn-primary"
+              >
+                {isLoading ? "Verifying..." : "Verify & Register"}
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsOtpSent(false);
+                  setOtp("");
+                }}
+                className="w-full text-center text-muted-foreground text-sm hover:text-foreground transition-colors"
+                disabled={isLoading}
+              >
+                Change number
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Login Link */}
+        <p className="text-center mt-8 text-muted-foreground">
+          Already have an account?{" "}
+          <Link to="/" className="link-text">
+            Login
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default Register;
