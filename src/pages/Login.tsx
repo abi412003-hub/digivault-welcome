@@ -83,15 +83,33 @@ const Login = () => {
 
       if (data.user) {
         // Upsert profile: insert if not exists, only fill missing values if exists
-        const { error: upsertError } = await supabase.rpc('upsert_profile_safe', {
-          p_id: data.user.id,
-          p_phone: formattedPhone,
-          p_role: 'client',
-          p_user_type: 'individual'
-        });
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("id, phone, role, user_type")
+          .eq("id", data.user.id)
+          .maybeSingle();
 
-        if (upsertError) {
-          console.error('Profile upsert error:', upsertError);
+        if (!existingProfile) {
+          // Insert new profile
+          await supabase.from("profiles").insert({
+            id: data.user.id,
+            phone: formattedPhone,
+            role: "client",
+            user_type: "individual",
+          });
+        } else {
+          // Update only missing (null) values
+          const updates: Record<string, string> = {};
+          if (!existingProfile.phone) updates.phone = formattedPhone;
+          if (!existingProfile.role) updates.role = "client";
+          if (!existingProfile.user_type) updates.user_type = "individual";
+
+          if (Object.keys(updates).length > 0) {
+            await supabase
+              .from("profiles")
+              .update(updates)
+              .eq("id", data.user.id);
+          }
         }
 
         toast({
