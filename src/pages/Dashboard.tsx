@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, FileText, Shield, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-
+import BottomNav from "@/components/BottomNav";
 interface Profile {
   id: string;
   role: string;
@@ -78,7 +78,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="bg-card border-b border-border px-6 py-4">
         <div className="max-w-lg mx-auto flex items-center justify-between">
@@ -161,6 +161,7 @@ const Dashboard = () => {
           </div>
         </div>
       </main>
+      <BottomNav />
     </div>
   );
 };
