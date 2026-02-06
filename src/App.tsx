@@ -18,6 +18,8 @@ import ServiceSelection from "./pages/ServiceSelection";
 import EKathaServices from "./pages/EKathaServices";
 import ServiceDetails from "./pages/ServiceDetails";
 import RequiredDocuments from "./pages/RequiredDocuments";
+import UploadCommonDocuments from "./pages/UploadCommonDocuments";
+import ServiceSpecificDocuments from "./pages/ServiceSpecificDocuments";
 import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
 import Estimate from "./pages/Estimate";
@@ -63,6 +65,8 @@ const App = () => (
           <Route path="/e-katha-services" element={<EKathaServices />} />
           <Route path="/service-details" element={<ServiceDetails />} />
           <Route path="/required-documents" element={<RequiredDocuments />} />
+          <Route path="/upload-common-documents" element={<UploadCommonDocuments />} />
+          <Route path="/service-specific-documents" element={<ServiceSpecificDocuments />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/proposals" element={<Proposals />} />
           <Route path="/estimate" element={<Estimate />} />

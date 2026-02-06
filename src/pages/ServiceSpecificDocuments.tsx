@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const RequiredDocuments = () => {
+const ServiceSpecificDocuments = () => {
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -10,11 +10,12 @@ const RequiredDocuments = () => {
   };
 
   const handleContinue = () => {
-    navigate("/upload-common-documents");
+    navigate("/dashboard");
   };
 
-  // Get selected service from localStorage
-  const selectedSubService = localStorage.getItem("selectedSubService") || "No service selected";
+  // Get selected services from localStorage
+  const selectedMainService = localStorage.getItem("selectedMainService") || "No service selected";
+  const selectedSubService = localStorage.getItem("selectedSubService") || "No sub-service selected";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -29,7 +30,7 @@ const RequiredDocuments = () => {
           </button>
           <div className="flex-1 text-center pr-10">
             <h1 className="text-lg font-bold text-foreground">
-              Required Documents
+              Service-Specific Documents
             </h1>
           </div>
         </div>
@@ -39,13 +40,13 @@ const RequiredDocuments = () => {
       <div className="flex-1 px-4 py-6">
         <div className="bg-muted/30 rounded-xl p-6 mb-6">
           <h2 className="text-sm font-semibold text-foreground mb-2">Selected Service:</h2>
-          <p className="text-sm text-muted-foreground">{selectedSubService}</p>
+          <p className="text-sm text-muted-foreground">{selectedMainService} - {selectedSubService}</p>
         </div>
 
         <div className="bg-muted/30 rounded-xl p-6">
-          <h2 className="text-sm font-semibold text-foreground mb-4">Documents Required</h2>
+          <h2 className="text-sm font-semibold text-foreground mb-4">Service-Specific Documents</h2>
           <p className="text-sm text-muted-foreground">
-            Document requirements will be displayed here based on the selected service.
+            Additional service-specific document requirements will be displayed here.
           </p>
         </div>
       </div>
@@ -63,4 +64,4 @@ const RequiredDocuments = () => {
   );
 };
 
-export default RequiredDocuments;
+export default ServiceSpecificDocuments;
