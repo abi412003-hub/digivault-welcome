@@ -25,6 +25,7 @@ import SelectCharges from "./pages/SelectCharges";
 import BasicCharges from "./pages/BasicCharges";
 import EstimatedCharges from "./pages/EstimatedCharges";
 import GovFees from "./pages/GovFees";
+import Payment from "./pages/Payment";
 import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
 import Estimate from "./pages/Estimate";
@@ -77,6 +78,7 @@ const App = () => (
           <Route path="/basic-charges" element={<BasicCharges />} />
           <Route path="/estimated-charges" element={<EstimatedCharges />} />
           <Route path="/gov-fees" element={<GovFees />} />
+          <Route path="/payment" element={<Payment />} />
           <Route path="/service-specific-documents" element={<ServiceSpecificDocuments />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/proposals" element={<Proposals />} />
