@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { createOrUpdateServiceRequest } from "@/lib/api";
+import { createProject, createProperty, createOrUpdateServiceRequest } from "@/lib/api";
 
 // Required documents per sub-service
 const REQUIRED_DOCUMENTS: Record<string, string[]> = {
@@ -67,15 +67,65 @@ const RequiredDocuments = () => {
       return;
     }
 
-    const project = JSON.parse(projectData);
-    const property = JSON.parse(propertyData);
+    const localProject = JSON.parse(projectData);
+    const localProperty = JSON.parse(propertyData);
 
     setLoading(true);
     try {
-      // Create or update service request via API
+      // Step 1: Create the project in the database
+      const projectResult = await createProject(
+        localProject.title || "Untitled Project",
+        localProject.description || ""
+      );
+      const dbProject = projectResult.project as { id: string; pr_number: string };
+
+      // Update localStorage with the real database project
+      localStorage.setItem("currentProject", JSON.stringify({
+        ...localProject,
+        id: dbProject.id,
+        prNumber: dbProject.pr_number,
+      }));
+
+      // Step 2: Create the property in the database
+      const propertyResult = await createProperty(dbProject.id, {
+        propertyType: localProperty.propertyType || "Apartment",
+        propertyName: localProperty.propertyName || "Untitled Property",
+        addressShort: localProperty.address || localProperty.addressShort,
+        sizeUnit: localProperty.propertySizeUnit || localProperty.sizeUnit,
+        sizeValue: localProperty.propertySize ? parseFloat(localProperty.propertySize) : (localProperty.sizeValue || undefined),
+        addressFields: {
+          doorNo: localProperty.doorNo,
+          buildingName: localProperty.buildingName,
+          crossRoad: localProperty.crossRoad,
+          mainRoad: localProperty.mainRoad,
+          landmark: localProperty.landmark,
+          areaName: localProperty.areaName,
+          state: localProperty.state,
+          zone: localProperty.zone,
+          district: localProperty.district,
+          taluk: localProperty.taluk,
+          areaType: localProperty.areaType,
+          municipalType: localProperty.municipalType,
+          pattanaPanchayathi: localProperty.pattanaPanchayathi,
+          urbanWard: localProperty.urbanWard,
+          postOffice: localProperty.postOffice,
+          pincode: localProperty.pincode,
+        },
+        latitude: localProperty.latitude ? parseFloat(localProperty.latitude) : undefined,
+        longitude: localProperty.longitude ? parseFloat(localProperty.longitude) : undefined,
+      });
+      const dbProperty = propertyResult.property as { id: string };
+
+      // Update localStorage with the real database property
+      localStorage.setItem("currentProperty", JSON.stringify({
+        ...localProperty,
+        id: dbProperty.id,
+      }));
+
+      // Step 3: Create service request with real database IDs
       const result = await createOrUpdateServiceRequest(
-        project.id,
-        property.id,
+        dbProject.id,
+        dbProperty.id,
         selectedMainService,
         selectedSubService !== "No sub-service selected" ? selectedSubService : undefined
       );
@@ -85,7 +135,7 @@ const RequiredDocuments = () => {
       localStorage.setItem("currentServiceRequestId", serviceRequest.id);
 
       toast({
-        title: result.created ? "Service Request Created" : "Service Request Updated",
+        title: "Service Request Created",
         description: "Proceeding to document upload",
       });
 
