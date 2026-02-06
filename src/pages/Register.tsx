@@ -119,7 +119,12 @@ const Register = () => {
           description: "Your account has been created successfully",
         });
 
-        navigate("/dashboard");
+        // Navigate based on registration type
+        if (registrationType === "individual") {
+          navigate("/individual-registration", { state: { phone: formattedPhone } });
+        } else {
+          navigate("/dashboard");
+        }
       }
     } catch (error: any) {
       toast({
