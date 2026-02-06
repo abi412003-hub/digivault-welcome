@@ -1,16 +1,32 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Shield } from "lucide-react";
+import { Shield, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
+type RegistrationTypeValue = "individual" | "organization" | "land_aggregator";
+
 const Register = () => {
+  const location = useLocation();
+  const registrationType = (location.state?.registrationType as RegistrationTypeValue) || "individual";
+  
   const [phone, setPhone] = useState("");
   const [otp, setOtp] = useState("");
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const getRegistrationLabel = () => {
+    switch (registrationType) {
+      case "organization":
+        return "Organization";
+      case "land_aggregator":
+        return "Land Aggregator";
+      default:
+        return "Individual";
+    }
+  };
 
   const formatPhoneNumber = (phoneNumber: string) => {
     const digits = phoneNumber.replace(/\D/g, "");
@@ -86,12 +102,12 @@ const Register = () => {
           .eq("id", data.user.id)
           .maybeSingle();
 
-        // If no profile exists, create one
+        // If no profile exists, create one with the selected registration type
         if (!profile) {
           const { error: insertError } = await supabase.from("profiles").insert({
             id: data.user.id,
             role: "client",
-            user_type: "individual",
+            user_type: registrationType,
             phone: formattedPhone,
           });
 
@@ -116,23 +132,40 @@ const Register = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 py-12">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="flex justify-center mb-8">
-          <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
-            <Shield className="w-8 h-8 text-primary" />
-          </div>
-        </div>
+  const handleBack = () => {
+    navigate("/registration-type");
+  };
 
-        {/* Title */}
-        <div className="text-center mb-10">
-          <h1 className="text-2xl font-bold text-foreground mb-2">
-            Create Account
-          </h1>
-          <p className="text-muted-foreground">Join e-DigiVault today</p>
-        </div>
+  return (
+    <div className="min-h-screen bg-background flex flex-col px-6 py-8">
+      {/* Header with Back */}
+      <div className="flex items-center mb-6">
+        <button
+          onClick={handleBack}
+          className="w-10 h-10 flex items-center justify-center text-foreground hover:text-muted-foreground transition-colors -ml-2"
+        >
+          <ChevronLeft className="w-6 h-6" />
+        </button>
+      </div>
+
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <div className="w-full max-w-sm">
+          {/* Logo */}
+          <div className="flex justify-center mb-8">
+            <div className="w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center">
+              <Shield className="w-8 h-8 text-primary" />
+            </div>
+          </div>
+
+          {/* Title */}
+          <div className="text-center mb-10">
+            <h1 className="text-2xl font-bold text-foreground mb-2">
+              Create Account
+            </h1>
+            <p className="text-muted-foreground">
+              Registering as <span className="text-primary font-medium">{getRegistrationLabel()}</span>
+            </p>
+          </div>
 
         {/* Form */}
         <div className="space-y-6">
@@ -207,13 +240,14 @@ const Register = () => {
           )}
         </div>
 
-        {/* Login Link */}
-        <p className="text-center mt-8 text-muted-foreground">
-          Already have an account?{" "}
-          <Link to="/" className="link-text">
-            Login
-          </Link>
-        </p>
+          {/* Login Link */}
+          <p className="text-center mt-8 text-muted-foreground">
+            Already have an account?{" "}
+            <Link to="/" className="link-text">
+              Login
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

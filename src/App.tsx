@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
+import RegistrationType from "./pages/RegistrationType";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import CreateProject from "./pages/CreateProject";
@@ -26,6 +27,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/onboarding" element={<Onboarding />} />
+          <Route path="/registration-type" element={<RegistrationType />} />
           <Route path="/register" element={<Register />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/projects" element={<Projects />} />
