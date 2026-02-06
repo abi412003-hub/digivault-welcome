@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +54,11 @@ const PropertyReview = () => {
     navigate("/create-property");
   };
 
+  const handleEditProperty = () => {
+    // Navigate to create-property with edit mode (property data remains in localStorage)
+    navigate("/create-property", { state: { editMode: true } });
+  };
+
   // Helper to format value or show fallback
   const formatValue = (value: string | undefined, fallback = "—") => {
     return value?.trim() || fallback;
@@ -103,11 +108,20 @@ const PropertyReview = () => {
         {/* Property Review Card */}
         <Card className="rounded-2xl shadow-sm border border-border">
           <CardContent className="p-4">
-            {/* Badge */}
-            <div className="flex justify-center mb-4">
+            {/* Badge and Edit Button Row */}
+            <div className="flex items-center justify-between mb-4">
               <Badge variant="secondary" className="px-4 py-1.5 text-sm font-medium rounded-full">
                 Uploaded Property Details - {propertyCount}
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleEditProperty}
+                className="h-8 px-3 text-primary hover:text-primary/80"
+              >
+                <Pencil className="w-4 h-4 mr-1.5" />
+                Edit
+              </Button>
             </div>
 
             {/* Property Details Grid */}
