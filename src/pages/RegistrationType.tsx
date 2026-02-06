@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { ChevronLeft, User, Building2, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -224,48 +224,40 @@ const RegistrationType = () => {
                 className="text-sm text-foreground cursor-pointer leading-relaxed"
               >
                 Click here to accept{" "}
-                <a
-                  href="/terms"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/terms"
                   className="text-primary font-medium hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Terms & Conditions
-                </a>{" "}
+                </Link>{" "}
                 &{" "}
-                <a
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <Link
+                  to="/privacy"
                   className="text-primary font-medium hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   Privacy Policy
-                </a>
+                </Link>
               </label>
             </div>
 
             {/* Supporting Text */}
             <p className="text-sm text-muted-foreground text-center leading-relaxed">
               By signing in, creating an account I am agreeing to e-DigiVault{" "}
-              <a
-                href="/terms"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/terms"
                 className="text-primary font-medium hover:underline"
               >
                 Terms & Conditions
-              </a>{" "}
+              </Link>{" "}
               and to our{" "}
-              <a
-                href="/privacy"
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                to="/privacy"
                 className="text-primary font-medium hover:underline"
               >
                 Privacy Policy
-              </a>
+              </Link>
             </p>
 
             {/* Continue Button */}

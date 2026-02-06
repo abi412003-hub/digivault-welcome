@@ -14,6 +14,7 @@ import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
 import Estimate from "./pages/Estimate";
 import Invoice from "./pages/Invoice";
+import Terms from "./pages/Terms";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,7 @@ const App = () => (
           <Route path="/proposals" element={<Proposals />} />
           <Route path="/estimate" element={<Estimate />} />
           <Route path="/invoice" element={<Invoice />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
