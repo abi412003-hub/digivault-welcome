@@ -123,6 +123,42 @@ function CurrentLocationButton({
   );
 }
 
+// Inner map component that only renders when dialog is open
+function MapContent({
+  position,
+  setPosition,
+  center,
+  isLocating,
+  setIsLocating,
+}: {
+  position: LatLng | null;
+  setPosition: (pos: LatLng) => void;
+  center: [number, number];
+  isLocating: boolean;
+  setIsLocating: (v: boolean) => void;
+}) {
+  return (
+    <MapContainer
+      center={center}
+      zoom={13}
+      style={{ height: "100%", width: "100%" }}
+      zoomControl={false}
+    >
+      <TileLayer
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      />
+      <LocationMarker position={position} setPosition={setPosition} />
+      <CurrentLocationButton
+        onLocationFound={setPosition}
+        isLocating={isLocating}
+        setIsLocating={setIsLocating}
+      />
+      <RecenterButton position={position} />
+    </MapContainer>
+  );
+}
+
 export function LocationPicker({
   open,
   onOpenChange,
@@ -132,6 +168,7 @@ export function LocationPicker({
 }: LocationPickerProps) {
   const [position, setPosition] = useState<LatLng | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   // Default center (Bangalore, India)
   const defaultCenter: [number, number] = [12.9716, 77.5946];
@@ -143,6 +180,11 @@ export function LocationPicker({
       } else {
         setPosition(null);
       }
+      // Delay map render to ensure dialog is fully mounted
+      const timer = setTimeout(() => setMapReady(true), 100);
+      return () => clearTimeout(timer);
+    } else {
+      setMapReady(false);
     }
   }, [open, initialLat, initialLng]);
 
@@ -172,24 +214,19 @@ export function LocationPicker({
 
         <div className="flex-1 relative px-4">
           <div className="h-full w-full rounded-xl overflow-hidden border border-border">
-            <MapContainer
-              center={center}
-              zoom={13}
-              style={{ height: "100%", width: "100%" }}
-              zoomControl={false}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <LocationMarker position={position} setPosition={setPosition} />
-              <CurrentLocationButton
-                onLocationFound={setPosition}
+            {mapReady ? (
+              <MapContent
+                position={position}
+                setPosition={setPosition}
+                center={center}
                 isLocating={isLocating}
                 setIsLocating={setIsLocating}
               />
-              <RecenterButton position={position} />
-            </MapContainer>
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-muted">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </div>
         </div>
 
