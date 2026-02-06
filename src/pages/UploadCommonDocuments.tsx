@@ -192,7 +192,6 @@ const UploadCommonDocuments = () => {
       <div className="p-4 border-t border-border">
         <Button 
           onClick={handleNext}
-          disabled={!isAllDocumentsUploaded}
           className="w-full h-12"
         >
           Next
