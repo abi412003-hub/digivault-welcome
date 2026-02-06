@@ -64,9 +64,25 @@ const ReviewDocuments = () => {
   // Fetch service request and documents
   useEffect(() => {
     const fetchData = async () => {
+      // Bypass mode: show mock data if no serviceRequestId
       if (!resolvedServiceRequestId) {
-        toast({ title: "Error", description: "No service request found", variant: "destructive" });
-        navigate("/dashboard");
+        setServiceRequest({
+          id: "mock",
+          main_service: "E-Khatha",
+          sub_service: "New E-Khatha Registration",
+          status: "draft",
+        });
+        setDocuments([
+          { id: "1", doc_group: "common", doc_name: "Pan", file_url: "mock", not_available: false, status: "uploaded" },
+          { id: "2", doc_group: "common", doc_name: "Aadhar", file_url: "mock", not_available: false, status: "uploaded" },
+          { id: "3", doc_group: "common", doc_name: "Birth", file_url: "mock", not_available: false, status: "uploaded" },
+          { id: "4", doc_group: "required", doc_name: "Pan", file_url: "mock", not_available: false, status: "uploaded" },
+          { id: "5", doc_group: "required", doc_name: "Aadhar", file_url: null, not_available: false, status: null },
+          { id: "6", doc_group: "required", doc_name: "EC", file_url: null, not_available: true, status: null },
+          { id: "7", doc_group: "required", doc_name: "NOC", file_url: null, not_available: true, status: null },
+          { id: "8", doc_group: "required", doc_name: "Property Survey Sketch / Layout Plan", file_url: null, not_available: true, status: null },
+        ]);
+        setLoading(false);
         return;
       }
 
