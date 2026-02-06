@@ -15,6 +15,7 @@ import CreateProject from "./pages/CreateProject";
 import CreateProperty from "./pages/CreateProperty";
 import PropertyReview from "./pages/PropertyReview";
 import ServiceSelection from "./pages/ServiceSelection";
+import ServiceDetails from "./pages/ServiceDetails";
 import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
 import Estimate from "./pages/Estimate";
@@ -44,6 +45,7 @@ const App = () => (
           <Route path="/create-property" element={<CreateProperty />} />
           <Route path="/property-review" element={<PropertyReview />} />
           <Route path="/service-selection" element={<ServiceSelection />} />
+          <Route path="/service-details" element={<ServiceDetails />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/proposals" element={<Proposals />} />
           <Route path="/estimate" element={<Estimate />} />
