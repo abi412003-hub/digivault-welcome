@@ -1,141 +1,230 @@
 import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Upload, Eye, Trash2 } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronLeft, FileText, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
+import {
+  uploadDocument,
+  toggleNotAvailable,
+  submitServiceRequest,
+} from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client";
 
-interface RequiredDoc {
-  docName: string;
-  file: File | null;
-  notAvailable: boolean;
+interface DocumentRecord {
+  id: string;
+  doc_group: string;
+  doc_name: string;
+  file_url: string | null;
+  not_available: boolean;
+  status: string | null;
 }
 
-const REQUIRED_DOCUMENTS = [
-  "Sale Deed / Registered Deed",
-  "Mother Deed / Parent Deed",
-  "Gift Deed / Partition Deed / Will",
-  "Latest Property Tax Receipt",
-  "Electricity / BESCOM Connection ID",
-  "Property Survey Sketch / Layout Plan",
-  "Utility Bill / Address Proof",
-  "Property Photographs",
-  "No Objection Certificate (NOC)",
-  "Encumbrance Certificate (EC)",
-];
+interface ServiceRequest {
+  id: string;
+  main_service: string;
+  sub_service: string | null;
+  status: string;
+}
+
+// Required documents per sub-service (can be expanded)
+const REQUIRED_DOCUMENTS: Record<string, string[]> = {
+  "New E-Khatha Registration": [
+    "Pan",
+    "Aadhar",
+    "Birth",
+    "Sale Deed",
+    "Land Deed",
+  ],
+  default: [
+    "Pan",
+    "Aadhar",
+    "Birth",
+    "Sale Deed",
+    "Land Deed",
+  ],
+};
 
 const ReviewDocuments = () => {
   const navigate = useNavigate();
-  const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
-  
-  const mainServiceData = localStorage.getItem("selectedMainService");
-  const selectedMainService = mainServiceData ? JSON.parse(mainServiceData).label : "No service selected";
-  const selectedSubService = localStorage.getItem("selectedSubService") || "No sub-service selected";
+  const [searchParams] = useSearchParams();
+  const serviceRequestId = searchParams.get("serviceRequestId");
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [requiredDocs, setRequiredDocs] = useState<RequiredDoc[]>(() => 
-    REQUIRED_DOCUMENTS.map(docName => ({
-      docName,
-      file: null,
-      notAvailable: false,
-    }))
-  );
+  const [serviceRequest, setServiceRequest] = useState<ServiceRequest | null>(null);
+  const [documents, setDocuments] = useState<DocumentRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [uploadTarget, setUploadTarget] = useState<{ docGroup: string; docName: string } | null>(null);
+  const [validationErrors, setValidationErrors] = useState<string[]>([]);
+
+  // Fetch service request and documents
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!serviceRequestId) {
+        toast({ title: "Error", description: "No service request found", variant: "destructive" });
+        navigate(-1);
+        return;
+      }
+
+      try {
+        // Fetch service request
+        const { data: srData, error: srError } = await supabase
+          .from("service_requests")
+          .select("*")
+          .eq("id", serviceRequestId)
+          .single();
+
+        if (srError) throw srError;
+        setServiceRequest(srData);
+
+        // Fetch documents for this service request
+        const { data: docsData, error: docsError } = await supabase
+          .from("documents")
+          .select("*")
+          .eq("service_request_id", serviceRequestId);
+
+        if (docsError) throw docsError;
+        setDocuments(docsData || []);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast({ title: "Error", description: "Failed to load data", variant: "destructive" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [serviceRequestId, navigate]);
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleFileChange = (index: number, file: File | null) => {
-    setRequiredDocs(prev => prev.map((doc, i) => 
-      i === index ? { ...doc, file, notAvailable: false } : doc
-    ));
+  const getRequiredDocs = (): string[] => {
+    if (!serviceRequest?.sub_service) return REQUIRED_DOCUMENTS.default;
+    return REQUIRED_DOCUMENTS[serviceRequest.sub_service] || REQUIRED_DOCUMENTS.default;
   };
 
-  const handleNotAvailable = (index: number) => {
-    setRequiredDocs(prev => prev.map((doc, i) => 
-      i === index ? { ...doc, notAvailable: !doc.notAvailable, file: null } : doc
-    ));
+  const getCommonDocs = () => {
+    return documents.filter((doc) => doc.doc_group === "common" && doc.file_url);
   };
 
-  const handleDeleteFile = (index: number) => {
-    setRequiredDocs(prev => prev.map((doc, i) => 
-      i === index ? { ...doc, file: null } : doc
-    ));
-    // Reset the file input
-    if (fileInputRefs.current[index]) {
-      fileInputRefs.current[index]!.value = '';
+  const getRequiredDocsWithStatus = () => {
+    const requiredDocNames = getRequiredDocs();
+    return requiredDocNames.map((docName) => {
+      const doc = documents.find(
+        (d) => d.doc_group === "required" && d.doc_name === docName
+      );
+      return {
+        docName,
+        uploaded: !!doc?.file_url,
+        notAvailable: !!doc?.not_available,
+        documentId: doc?.id,
+      };
+    });
+  };
+
+  const getNotAvailableDocs = () => {
+    return documents.filter((doc) => doc.not_available);
+  };
+
+  const handleTileClick = (docGroup: string, docName: string) => {
+    setUploadTarget({ docGroup, docName });
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !uploadTarget || !serviceRequestId) return;
+
+    setUploading(true);
+    try {
+      await uploadDocument(serviceRequestId, uploadTarget.docGroup, uploadTarget.docName, file);
+      
+      // Refresh documents
+      const { data: docsData } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("service_request_id", serviceRequestId);
+      
+      setDocuments(docsData || []);
+      setValidationErrors((prev) => prev.filter((err) => err !== uploadTarget.docName));
+      toast({ title: "Uploaded", description: `${uploadTarget.docName} uploaded successfully` });
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({ title: "Error", description: "Failed to upload document", variant: "destructive" });
+    } finally {
+      setUploading(false);
+      setUploadTarget(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
-  const handlePreviewFile = (file: File) => {
-    const url = URL.createObjectURL(file);
-    window.open(url, '_blank');
+  const handleToggleNotAvailable = async (docName: string, currentState: boolean) => {
+    if (!serviceRequestId) return;
+
+    try {
+      await toggleNotAvailable(serviceRequestId, docName, !currentState);
+      
+      // Refresh documents
+      const { data: docsData } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("service_request_id", serviceRequestId);
+      
+      setDocuments(docsData || []);
+      setValidationErrors((prev) => prev.filter((err) => err !== docName));
+    } catch (error) {
+      console.error("Toggle error:", error);
+      toast({ title: "Error", description: "Failed to update document status", variant: "destructive" });
+    }
   };
 
-  const handleUploadClick = (index: number) => {
-    fileInputRefs.current[index]?.click();
+  const handleSaveAndSubmit = async () => {
+    if (!serviceRequestId) return;
+
+    // Validate required documents
+    const requiredDocsStatus = getRequiredDocsWithStatus();
+    const missingDocs = requiredDocsStatus.filter(
+      (doc) => !doc.uploaded && !doc.notAvailable
+    );
+
+    if (missingDocs.length > 0) {
+      setValidationErrors(missingDocs.map((d) => d.docName));
+      toast({
+        title: "Validation Error",
+        description: "Please upload or mark all required documents as not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const requiredDocNames = getRequiredDocs();
+      await submitServiceRequest(serviceRequestId, requiredDocNames);
+      toast({ title: "Submitted", description: "Your service request has been submitted" });
+      navigate("/dashboard");
+    } catch (error) {
+      console.error("Submit error:", error);
+      toast({ title: "Error", description: "Failed to submit service request", variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const validateDocs = (): boolean => {
-    return requiredDocs.every(doc => doc.file !== null || doc.notAvailable);
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
-  const saveDocuments = (status: "Draft" | "Submitted") => {
-    const commonDocs = localStorage.getItem("commonDocs");
-    const currentProjectId = localStorage.getItem("currentProjectId") || "default";
-    const currentPropertyId = localStorage.getItem("currentPropertyId") || "default";
-
-    const serviceRequest = {
-      projectId: currentProjectId,
-      propertyId: currentPropertyId,
-      selectedMainService,
-      selectedSubService,
-      commonDocs: commonDocs ? JSON.parse(commonDocs) : null,
-      requiredDocs: requiredDocs.map(doc => ({
-        docName: doc.docName,
-        fileName: doc.file?.name || null,
-        notAvailable: doc.notAvailable,
-      })),
-      status,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save to localStorage
-    const existingRequests = JSON.parse(localStorage.getItem("serviceRequests") || "[]");
-    existingRequests.push(serviceRequest);
-    localStorage.setItem("serviceRequests", JSON.stringify(existingRequests));
-
-    return serviceRequest;
-  };
-
-  const handleSave = () => {
-    saveDocuments("Draft");
-    toast({
-      title: "Saved",
-      description: "Your documents have been saved as draft.",
-    });
-  };
-
-  const handleSaveAndSubmit = () => {
-    const serviceRequest = saveDocuments("Submitted");
-
-    // Create activity entries
-    const activities = JSON.parse(localStorage.getItem("activities") || "[]");
-    activities.push({
-      id: Date.now().toString(),
-      type: "service_request",
-      title: `${selectedSubService} - Pending Review`,
-      description: `Service request for ${selectedMainService}`,
-      status: "Pending",
-      createdAt: new Date().toISOString(),
-    });
-    localStorage.setItem("activities", JSON.stringify(activities));
-
-    toast({
-      title: "Submitted successfully",
-      description: "Your service request has been submitted.",
-    });
-
-    navigate("/dashboard");
-  };
+  const commonDocs = getCommonDocs();
+  const requiredDocsStatus = getRequiredDocsWithStatus();
+  const notAvailableDocs = getNotAvailableDocs();
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -162,111 +251,165 @@ const ReviewDocuments = () => {
             <div className="flex justify-between items-start">
               <span className="text-sm font-medium text-foreground">Main Service</span>
               <span className="text-sm text-muted-foreground text-right max-w-[60%]">
-                {selectedMainService}
+                {serviceRequest?.main_service || "—"}
               </span>
             </div>
             <div className="flex justify-between items-start">
               <span className="text-sm font-medium text-foreground">Sub Service</span>
               <span className="text-sm text-muted-foreground text-right max-w-[60%]">
-                {selectedSubService}
+                {serviceRequest?.sub_service || "—"}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Section Title */}
-        <h3 className="text-base font-semibold text-foreground text-center mb-6">
-          {selectedSubService} Required Documents
-        </h3>
-
-        {/* Required Documents List */}
-        <div className="space-y-4">
-          {requiredDocs.map((doc, index) => (
-            <div key={index} className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                {doc.docName}
-              </label>
-              <div className="flex items-center gap-2">
-                {doc.file ? (
-                  // File uploaded state
-                  <div className="flex-1 h-11 px-4 rounded-full border border-border bg-background flex items-center justify-between">
-                    <span className="text-sm text-foreground truncate max-w-[120px]">
-                      {doc.file.name}
-                    </span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handlePreviewFile(doc.file!)}
-                        className="p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFile(index)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
+        {/* Uploaded Documents Section */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Uploaded Documents</h3>
+          
+          {/* Common Documents */}
+          <div className="mb-4">
+            <p className="text-xs text-muted-foreground mb-2">Common Document</p>
+            <div className="grid grid-cols-3 gap-3">
+              {commonDocs.map((doc) => (
+                <button
+                  key={doc.id}
+                  onClick={() => handleTileClick("common", doc.doc_name)}
+                  className="relative aspect-square rounded-xl bg-primary flex flex-col items-center justify-center p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
+                >
+                  <FileText className="w-8 h-8 mb-1" />
+                  <span className="text-xs font-medium text-center truncate w-full">
+                    {doc.doc_name}
+                  </span>
+                  <div className="absolute top-2 right-2">
+                    <FileText className="w-3 h-3" />
                   </div>
-                ) : (
-                  // Upload state
-                  <div
-                    onClick={() => !doc.notAvailable && handleUploadClick(index)}
-                    className={`flex-1 h-11 px-4 rounded-full border border-border bg-background flex items-center justify-between ${
-                      doc.notAvailable ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:border-primary/50'
+                </button>
+              ))}
+              {/* Other Documents tile */}
+              <button
+                onClick={() => handleTileClick("common", "Other")}
+                className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center p-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+              >
+                <Plus className="w-6 h-6 mb-1" />
+                <span className="text-xs font-medium text-center">Other Documents</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Required Documents Section */}
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-foreground mb-3">Required Document</h3>
+          <div className="grid grid-cols-3 gap-3">
+            {requiredDocsStatus.map((doc) => {
+              const hasError = validationErrors.includes(doc.docName);
+              const isUploaded = doc.uploaded;
+              const isNotAvailable = doc.notAvailable;
+
+              return (
+                <div key={doc.docName} className="flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      if (!isNotAvailable) {
+                        handleTileClick("required", doc.docName);
+                      }
+                    }}
+                    disabled={isNotAvailable}
+                    className={`relative aspect-square rounded-xl flex flex-col items-center justify-center p-2 transition-colors ${
+                      isUploaded
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : isNotAvailable
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : hasError
+                        ? "bg-destructive/10 border-2 border-destructive text-destructive"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                   >
-                    <span className="text-sm text-muted-foreground">Upload File</span>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleNotAvailable(index);
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                          doc.notAvailable
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-primary/10 text-primary hover:bg-primary/20'
-                        }`}
-                      >
-                        Not Available
-                      </button>
-                      <Upload className="w-5 h-5 text-muted-foreground" />
-                    </div>
-                  </div>
-                )}
-                <input
-                  ref={(el) => (fileInputRefs.current[index] = el)}
-                  type="file"
-                  accept="image/*,.pdf,.doc,.docx"
-                  className="hidden"
-                  onChange={(e) => handleFileChange(index, e.target.files?.[0] || null)}
-                  disabled={doc.notAvailable}
-                />
-              </div>
-            </div>
-          ))}
+                    {isUploaded ? (
+                      <FileText className="w-8 h-8 mb-1" />
+                    ) : (
+                      <Upload className="w-8 h-8 mb-1" />
+                    )}
+                    <span className="text-xs font-medium text-center truncate w-full">
+                      {doc.docName}
+                    </span>
+                    {isUploaded && (
+                      <div className="absolute top-2 right-2">
+                        <FileText className="w-3 h-3" />
+                      </div>
+                    )}
+                  </button>
+                  {!isUploaded && !isNotAvailable && (
+                    <button
+                      onClick={() => handleToggleNotAvailable(doc.docName, false)}
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Mark N/A
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+            {/* Other Documents tile */}
+            <button
+              onClick={() => handleTileClick("required", "Other")}
+              className="aspect-square rounded-xl border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center p-2 text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+            >
+              <Plus className="w-6 h-6 mb-1" />
+              <span className="text-xs font-medium text-center">Other Documents</span>
+            </button>
+          </div>
         </div>
+
+        {/* Not Available Documents Section */}
+        {notAvailableDocs.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold text-foreground mb-3">Not available Documents</h3>
+            <div className="grid grid-cols-3 gap-3">
+              {notAvailableDocs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="aspect-square rounded-xl bg-muted flex flex-col items-center justify-center p-2 text-muted-foreground opacity-60"
+                >
+                  <FileText className="w-8 h-8 mb-1" />
+                  <span className="text-xs font-medium text-center truncate w-full">
+                    {doc.doc_name}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Validation Error Message */}
+        {validationErrors.length > 0 && (
+          <div className="bg-destructive/10 border border-destructive/30 rounded-lg p-3 mb-4">
+            <p className="text-sm text-destructive text-center">
+              Please upload or mark all required documents
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Bottom Buttons */}
+      {/* Hidden File Input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {/* Bottom Button */}
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border">
-        <div className="flex gap-3">
-          <Button
-            onClick={handleSave}
-            variant="default"
-            className="flex-1 h-12"
-          >
-            Save
-          </Button>
-          <Button
-            onClick={handleSaveAndSubmit}
-            variant="default"
-            className="flex-1 h-12"
-          >
-            Save & Submit
-          </Button>
-        </div>
+        <Button
+          onClick={handleSaveAndSubmit}
+          disabled={submitting || uploading}
+          className="w-full h-12"
+        >
+          {submitting ? "Submitting..." : uploading ? "Uploading..." : "Save & Submit"}
+        </Button>
       </div>
     </div>
   );
