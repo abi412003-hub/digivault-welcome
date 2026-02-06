@@ -2,6 +2,14 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, User, Building2, Landmark } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
 
 type RegistrationTypeValue = "individual" | "organization" | "land_aggregator";
 
@@ -13,6 +21,8 @@ interface SelectionCard {
 
 const RegistrationType = () => {
   const [selectedType, setSelectedType] = useState<RegistrationTypeValue | null>(null);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const navigate = useNavigate();
 
   const cards: SelectionCard[] = [
@@ -28,10 +38,34 @@ const RegistrationType = () => {
 
   const handleSelect = (type: RegistrationTypeValue) => {
     setSelectedType(type);
-    // Navigate to register after a brief delay to show selection
-    setTimeout(() => {
-      navigate("/register", { state: { registrationType: type } });
-    }, 300);
+    
+    if (type === "individual") {
+      // Show terms modal for individual
+      setShowTermsModal(true);
+    } else {
+      // Navigate directly for other types
+      setTimeout(() => {
+        navigate("/register", { state: { registrationType: type } });
+      }, 300);
+    }
+  };
+
+  const handleContinue = () => {
+    if (termsAccepted) {
+      // Save to local storage
+      localStorage.setItem("termsAccepted", "true");
+      localStorage.setItem("registrationType", "individual");
+      
+      // Close modal and navigate
+      setShowTermsModal(false);
+      navigate("/register", { state: { registrationType: "individual", termsAccepted: true } });
+    }
+  };
+
+  const handleModalClose = () => {
+    setShowTermsModal(false);
+    setSelectedType(null);
+    setTermsAccepted(false);
   };
 
   const handleBack = () => {
@@ -166,6 +200,85 @@ const RegistrationType = () => {
           <li>Register as a <span className="text-foreground font-medium">Land Aggregator</span>.</li>
         </ul>
       </div>
+
+      {/* Terms & Conditions Modal */}
+      <Dialog open={showTermsModal} onOpenChange={handleModalClose}>
+        <DialogContent className="mx-4 rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-bold text-foreground">
+              Individual
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 pt-2">
+            {/* Checkbox */}
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="terms"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor="terms"
+                className="text-sm text-foreground cursor-pointer leading-relaxed"
+              >
+                Click here to accept{" "}
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Terms & Conditions
+                </a>{" "}
+                &{" "}
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Privacy Policy
+                </a>
+              </label>
+            </div>
+
+            {/* Supporting Text */}
+            <p className="text-sm text-muted-foreground text-center leading-relaxed">
+              By signing in, creating an account I am agreeing to e-DigiVault{" "}
+              <a
+                href="/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
+              >
+                Terms & Conditions
+              </a>{" "}
+              and to our{" "}
+              <a
+                href="/privacy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary font-medium hover:underline"
+              >
+                Privacy Policy
+              </a>
+            </p>
+
+            {/* Continue Button */}
+            <Button
+              onClick={handleContinue}
+              disabled={!termsAccepted}
+              className="w-full h-12 rounded-xl font-semibold"
+            >
+              Continue
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
