@@ -122,6 +122,8 @@ const Register = () => {
         // Navigate based on registration type
         if (registrationType === "individual") {
           navigate("/individual-registration", { state: { phone: formattedPhone } });
+        } else if (registrationType === "organization") {
+          navigate("/organization-registration", { state: { phone: formattedPhone } });
         } else {
           navigate("/dashboard");
         }
