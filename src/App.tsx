@@ -24,6 +24,13 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Properties from "./pages/Properties";
 import Transactions from "./pages/Transactions";
+import NotificationsSettings from "./pages/settings/NotificationsSettings";
+import LanguagePreference from "./pages/settings/LanguagePreference";
+import PrivacySettings from "./pages/settings/PrivacySettings";
+import Feedback from "./pages/settings/Feedback";
+import ContactSupport from "./pages/settings/ContactSupport";
+import UserManual from "./pages/settings/UserManual";
+import FAQHelp from "./pages/settings/FAQHelp";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +63,13 @@ const App = () => (
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/properties" element={<Properties />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/settings/notifications" element={<NotificationsSettings />} />
+          <Route path="/settings/language" element={<LanguagePreference />} />
+          <Route path="/settings/privacy" element={<PrivacySettings />} />
+          <Route path="/settings/feedback" element={<Feedback />} />
+          <Route path="/settings/support" element={<ContactSupport />} />
+          <Route path="/settings/manual" element={<UserManual />} />
+          <Route path="/settings/faq" element={<FAQHelp />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
