@@ -53,7 +53,8 @@ const SelectCharges = () => {
   useEffect(() => {
     const fetchData = async () => {
       if (!resolvedServiceRequestId) {
-        navigate("/dashboard");
+        // No redirect - just show empty state
+        setLoading(false);
         return;
       }
 
@@ -100,7 +101,7 @@ const SelectCharges = () => {
         });
       } catch (error) {
         console.error("Error fetching data:", error);
-        navigate("/dashboard");
+        // Don't redirect, just show with empty data
       } finally {
         setLoading(false);
       }
