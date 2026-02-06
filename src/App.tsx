@@ -21,6 +21,7 @@ import RequiredDocuments from "./pages/RequiredDocuments";
 import UploadCommonDocuments from "./pages/UploadCommonDocuments";
 import ServiceSpecificDocuments from "./pages/ServiceSpecificDocuments";
 import ReviewDocuments from "./pages/ReviewDocuments";
+import VideoVerification from "./pages/VideoVerification";
 import SelectCharges from "./pages/SelectCharges";
 import BasicCharges from "./pages/BasicCharges";
 import EstimatedCharges from "./pages/EstimatedCharges";
@@ -74,6 +75,7 @@ const App = () => (
           <Route path="/required-documents" element={<RequiredDocuments />} />
           <Route path="/upload-common-documents" element={<UploadCommonDocuments />} />
           <Route path="/review-documents" element={<ReviewDocuments />} />
+          <Route path="/video-verification" element={<VideoVerification />} />
           <Route path="/select-charges" element={<SelectCharges />} />
           <Route path="/basic-charges" element={<BasicCharges />} />
           <Route path="/estimated-charges" element={<EstimatedCharges />} />
