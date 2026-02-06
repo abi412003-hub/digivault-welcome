@@ -70,7 +70,14 @@ const UploadCommonDocuments = () => {
       dobBack: documents.dobBack?.name || null,
     };
     localStorage.setItem("commonDocs", JSON.stringify(commonDocs));
-    navigate("/review-documents");
+    
+    // Get serviceRequestId from localStorage and pass to review page
+    const serviceRequestId = localStorage.getItem("currentServiceRequestId");
+    if (serviceRequestId) {
+      navigate(`/review-documents?serviceRequestId=${serviceRequestId}`);
+    } else {
+      navigate("/review-documents");
+    }
   };
 
   const UploadBox = ({ 

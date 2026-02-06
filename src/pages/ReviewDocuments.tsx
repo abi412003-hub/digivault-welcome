@@ -205,7 +205,6 @@ const ReviewDocuments = () => {
     }
 
     setSubmitting(true);
-    setSubmitting(true);
     try {
       const requiredDocNames = getRequiredDocs();
       await submitServiceRequest(resolvedServiceRequestId, requiredDocNames);
