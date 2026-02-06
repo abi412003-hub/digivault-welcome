@@ -224,14 +224,17 @@ const ReviewDocuments = () => {
       const requiredDocNames = getRequiredDocs();
       await submitServiceRequest(resolvedServiceRequestId, requiredDocNames);
       
-      // Clear localStorage items used in the flow
+      // Store service request ID for Select Charges screen
+      localStorage.setItem("submittedServiceRequestId", resolvedServiceRequestId);
+      
+      // Clear other localStorage items used in the flow
       localStorage.removeItem("currentServiceRequestId");
       localStorage.removeItem("selectedMainService");
       localStorage.removeItem("selectedSubService");
       localStorage.removeItem("commonDocs");
       
       toast({ title: "Submitted", description: "Your service request has been submitted" });
-      navigate("/dashboard");
+      navigate(`/select-charges?serviceRequestId=${resolvedServiceRequestId}`);
     } catch (error) {
       console.error("Submit error:", error);
       toast({ title: "Error", description: "Failed to submit service request", variant: "destructive" });
