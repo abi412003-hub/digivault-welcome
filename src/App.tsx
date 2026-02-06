@@ -21,6 +21,10 @@ import RequiredDocuments from "./pages/RequiredDocuments";
 import UploadCommonDocuments from "./pages/UploadCommonDocuments";
 import ServiceSpecificDocuments from "./pages/ServiceSpecificDocuments";
 import ReviewDocuments from "./pages/ReviewDocuments";
+import SelectCharges from "./pages/SelectCharges";
+import BasicCharges from "./pages/BasicCharges";
+import EstimatedCharges from "./pages/EstimatedCharges";
+import GovFees from "./pages/GovFees";
 import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
 import Estimate from "./pages/Estimate";
@@ -68,6 +72,10 @@ const App = () => (
           <Route path="/required-documents" element={<RequiredDocuments />} />
           <Route path="/upload-common-documents" element={<UploadCommonDocuments />} />
           <Route path="/review-documents" element={<ReviewDocuments />} />
+          <Route path="/select-charges" element={<SelectCharges />} />
+          <Route path="/basic-charges" element={<BasicCharges />} />
+          <Route path="/estimated-charges" element={<EstimatedCharges />} />
+          <Route path="/gov-fees" element={<GovFees />} />
           <Route path="/service-specific-documents" element={<ServiceSpecificDocuments />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/proposals" element={<Proposals />} />
