@@ -21,7 +21,8 @@ interface SelectionCard {
 
 const RegistrationType = () => {
   const [selectedType, setSelectedType] = useState<RegistrationTypeValue | null>(null);
-  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [showIndividualModal, setShowIndividualModal] = useState(false);
+  const [showOrganizationModal, setShowOrganizationModal] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const navigate = useNavigate();
 
@@ -40,30 +41,43 @@ const RegistrationType = () => {
     setSelectedType(type);
     
     if (type === "individual") {
-      // Show terms modal for individual
-      setShowTermsModal(true);
+      setShowIndividualModal(true);
+    } else if (type === "organization") {
+      setShowOrganizationModal(true);
     } else {
-      // Navigate directly for other types
+      // Navigate directly for land aggregator
       setTimeout(() => {
         navigate("/register", { state: { registrationType: type } });
       }, 300);
     }
   };
 
-  const handleContinue = () => {
+  const handleIndividualContinue = () => {
     if (termsAccepted) {
-      // Save to local storage
       localStorage.setItem("termsAccepted", "true");
       localStorage.setItem("registrationType", "individual");
-      
-      // Close modal and navigate
-      setShowTermsModal(false);
+      setShowIndividualModal(false);
       navigate("/register", { state: { registrationType: "individual", termsAccepted: true } });
     }
   };
 
-  const handleModalClose = () => {
-    setShowTermsModal(false);
+  const handleOrganizationContinue = () => {
+    if (termsAccepted) {
+      localStorage.setItem("termsAccepted", "true");
+      localStorage.setItem("registrationType", "organization");
+      setShowOrganizationModal(false);
+      navigate("/register", { state: { registrationType: "organization", termsAccepted: true } });
+    }
+  };
+
+  const handleIndividualModalClose = () => {
+    setShowIndividualModal(false);
+    setSelectedType(null);
+    setTermsAccepted(false);
+  };
+
+  const handleOrganizationModalClose = () => {
+    setShowOrganizationModal(false);
     setSelectedType(null);
     setTermsAccepted(false);
   };
@@ -201,8 +215,8 @@ const RegistrationType = () => {
         </ul>
       </div>
 
-      {/* Terms & Conditions Modal */}
-      <Dialog open={showTermsModal} onOpenChange={handleModalClose}>
+      {/* Individual Terms & Conditions Modal */}
+      <Dialog open={showIndividualModal} onOpenChange={handleIndividualModalClose}>
         <DialogContent className="mx-4 rounded-2xl max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-center text-xl font-bold text-foreground">
@@ -214,13 +228,13 @@ const RegistrationType = () => {
             {/* Checkbox */}
             <div className="flex items-start gap-3">
               <Checkbox
-                id="terms"
+                id="terms-individual"
                 checked={termsAccepted}
                 onCheckedChange={(checked) => setTermsAccepted(checked === true)}
                 className="mt-0.5"
               />
               <label
-                htmlFor="terms"
+                htmlFor="terms-individual"
                 className="text-sm text-foreground cursor-pointer leading-relaxed"
               >
                 Click here to accept{" "}
@@ -262,7 +276,78 @@ const RegistrationType = () => {
 
             {/* Continue Button */}
             <Button
-              onClick={handleContinue}
+              onClick={handleIndividualContinue}
+              disabled={!termsAccepted}
+              className="w-full h-12 rounded-xl font-semibold"
+            >
+              Continue
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Organization Terms & Conditions Modal */}
+      <Dialog open={showOrganizationModal} onOpenChange={handleOrganizationModalClose}>
+        <DialogContent className="mx-4 rounded-2xl max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-bold text-foreground">
+              Organisation
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 pt-2">
+            {/* Checkbox */}
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="terms-organization"
+                checked={termsAccepted}
+                onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                className="mt-0.5"
+              />
+              <label
+                htmlFor="terms-organization"
+                className="text-sm text-foreground cursor-pointer leading-relaxed"
+              >
+                Click here to accept{" "}
+                <Link
+                  to="/terms"
+                  className="text-primary font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Terms & Conditions
+                </Link>{" "}
+                &{" "}
+                <Link
+                  to="/privacy"
+                  className="text-primary font-medium hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Privacy Policy
+                </Link>
+              </label>
+            </div>
+
+            {/* Supporting Text */}
+            <p className="text-sm text-muted-foreground text-center leading-relaxed">
+              By signing in, creating an account I am agreeing to e-DigiVault{" "}
+              <Link
+                to="/terms"
+                className="text-primary font-medium hover:underline"
+              >
+                Terms & Conditions
+              </Link>{" "}
+              and to our{" "}
+              <Link
+                to="/privacy"
+                className="text-primary font-medium hover:underline"
+              >
+                Privacy Policy
+              </Link>
+            </p>
+
+            {/* Continue Button */}
+            <Button
+              onClick={handleOrganizationContinue}
               disabled={!termsAccepted}
               className="w-full h-12 rounded-xl font-semibold"
             >
