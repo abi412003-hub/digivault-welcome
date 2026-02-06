@@ -58,9 +58,16 @@ const CreateProperty = () => {
     if (stored) {
       const project = JSON.parse(stored);
       setCurrentProject(project);
-      // Generate reference ID based on project id or random
-      const refNum = Math.floor(100000 + Math.random() * 900000);
-      setProjectRefId(`PR-${refNum}`);
+      // Generate reference ID and store it for review page
+      const existingRefId = localStorage.getItem("projectRefId");
+      if (!existingRefId || !existingRefId.startsWith("PR-")) {
+        const refNum = Math.floor(100000 + Math.random() * 900000);
+        const newRefId = `PR-${refNum}`;
+        setProjectRefId(newRefId);
+        localStorage.setItem("projectRefId", newRefId);
+      } else {
+        setProjectRefId(existingRefId);
+      }
     }
   }, []);
 
@@ -180,8 +187,8 @@ const CreateProperty = () => {
     // Store current property
     localStorage.setItem("currentProperty", JSON.stringify(property));
 
-    // Navigate to service selection (placeholder)
-    navigate("/service-selection");
+    // Navigate to property review
+    navigate("/property-review");
   };
 
   // Sample data for dropdowns

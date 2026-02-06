@@ -13,6 +13,7 @@ import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import CreateProject from "./pages/CreateProject";
 import CreateProperty from "./pages/CreateProperty";
+import PropertyReview from "./pages/PropertyReview";
 import ServiceSelection from "./pages/ServiceSelection";
 import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
@@ -41,6 +42,7 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/create" element={<CreateProject />} />
           <Route path="/create-property" element={<CreateProperty />} />
+          <Route path="/property-review" element={<PropertyReview />} />
           <Route path="/service-selection" element={<ServiceSelection />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/proposals" element={<Proposals />} />
