@@ -8,6 +8,7 @@ import Register from "./pages/Register";
 import Onboarding from "./pages/Onboarding";
 import RegistrationType from "./pages/RegistrationType";
 import IndividualRegistration from "./pages/IndividualRegistration";
+import OrganizationRegistration from "./pages/OrganizationRegistration";
 import Dashboard from "./pages/Dashboard";
 import Projects from "./pages/Projects";
 import CreateProject from "./pages/CreateProject";
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/registration-type" element={<RegistrationType />} />
           <Route path="/register" element={<Register />} />
           <Route path="/individual-registration" element={<IndividualRegistration />} />
+          <Route path="/organization-registration" element={<OrganizationRegistration />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/create" element={<CreateProject />} />
