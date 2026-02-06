@@ -58,12 +58,15 @@ const ReviewDocuments = () => {
   const [uploadTarget, setUploadTarget] = useState<{ docGroup: string; docName: string } | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
+  // Get serviceRequestId from URL or localStorage
+  const resolvedServiceRequestId = serviceRequestId || localStorage.getItem("currentServiceRequestId");
+
   // Fetch service request and documents
   useEffect(() => {
     const fetchData = async () => {
-      if (!serviceRequestId) {
+      if (!resolvedServiceRequestId) {
         toast({ title: "Error", description: "No service request found", variant: "destructive" });
-        navigate(-1);
+        navigate("/dashboard");
         return;
       }
 
@@ -72,20 +75,20 @@ const ReviewDocuments = () => {
         const { data: srData, error: srError } = await supabase
           .from("service_requests")
           .select("*")
-          .eq("id", serviceRequestId)
+          .eq("id", resolvedServiceRequestId)
           .single();
 
         if (srError) throw srError;
-        setServiceRequest(srData);
+        setServiceRequest(srData as unknown as ServiceRequest);
 
         // Fetch documents for this service request
         const { data: docsData, error: docsError } = await supabase
           .from("documents")
           .select("*")
-          .eq("service_request_id", serviceRequestId);
+          .eq("service_request_id", resolvedServiceRequestId);
 
         if (docsError) throw docsError;
-        setDocuments(docsData || []);
+        setDocuments((docsData || []) as unknown as DocumentRecord[]);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({ title: "Error", description: "Failed to load data", variant: "destructive" });
@@ -95,7 +98,8 @@ const ReviewDocuments = () => {
     };
 
     fetchData();
-  }, [serviceRequestId, navigate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedServiceRequestId, navigate]);
 
   const handleBack = () => {
     navigate(-1);
@@ -136,19 +140,19 @@ const ReviewDocuments = () => {
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !uploadTarget || !serviceRequestId) return;
+    if (!file || !uploadTarget || !resolvedServiceRequestId) return;
 
     setUploading(true);
     try {
-      await uploadDocument(serviceRequestId, uploadTarget.docGroup, uploadTarget.docName, file);
+      await uploadDocument(resolvedServiceRequestId, uploadTarget.docGroup, uploadTarget.docName, file);
       
       // Refresh documents
       const { data: docsData } = await supabase
         .from("documents")
         .select("*")
-        .eq("service_request_id", serviceRequestId);
+        .eq("service_request_id", resolvedServiceRequestId);
       
-      setDocuments(docsData || []);
+      setDocuments((docsData || []) as unknown as DocumentRecord[]);
       setValidationErrors((prev) => prev.filter((err) => err !== uploadTarget.docName));
       toast({ title: "Uploaded", description: `${uploadTarget.docName} uploaded successfully` });
     } catch (error) {
@@ -162,18 +166,18 @@ const ReviewDocuments = () => {
   };
 
   const handleToggleNotAvailable = async (docName: string, currentState: boolean) => {
-    if (!serviceRequestId) return;
+    if (!resolvedServiceRequestId) return;
 
     try {
-      await toggleNotAvailable(serviceRequestId, docName, !currentState);
+      await toggleNotAvailable(resolvedServiceRequestId, docName, !currentState);
       
       // Refresh documents
       const { data: docsData } = await supabase
         .from("documents")
         .select("*")
-        .eq("service_request_id", serviceRequestId);
+        .eq("service_request_id", resolvedServiceRequestId);
       
-      setDocuments(docsData || []);
+      setDocuments((docsData || []) as unknown as DocumentRecord[]);
       setValidationErrors((prev) => prev.filter((err) => err !== docName));
     } catch (error) {
       console.error("Toggle error:", error);
@@ -182,7 +186,7 @@ const ReviewDocuments = () => {
   };
 
   const handleSaveAndSubmit = async () => {
-    if (!serviceRequestId) return;
+    if (!resolvedServiceRequestId) return;
 
     // Validate required documents
     const requiredDocsStatus = getRequiredDocsWithStatus();
@@ -201,9 +205,10 @@ const ReviewDocuments = () => {
     }
 
     setSubmitting(true);
+    setSubmitting(true);
     try {
       const requiredDocNames = getRequiredDocs();
-      await submitServiceRequest(serviceRequestId, requiredDocNames);
+      await submitServiceRequest(resolvedServiceRequestId, requiredDocNames);
       toast({ title: "Submitted", description: "Your service request has been submitted" });
       navigate("/dashboard");
     } catch (error) {
