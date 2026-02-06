@@ -13,8 +13,10 @@ const RequiredDocuments = () => {
     navigate("/upload-common-documents");
   };
 
-  // Get selected service from localStorage
-  const selectedSubService = localStorage.getItem("selectedSubService") || "No service selected";
+  // Get selected services from localStorage
+  const mainServiceData = localStorage.getItem("selectedMainService");
+  const selectedMainService = mainServiceData ? JSON.parse(mainServiceData).label : "No service selected";
+  const selectedSubService = localStorage.getItem("selectedSubService") || "No sub-service selected";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

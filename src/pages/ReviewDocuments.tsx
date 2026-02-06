@@ -27,7 +27,8 @@ const ReviewDocuments = () => {
   const navigate = useNavigate();
   const fileInputRefs = useRef<{ [key: number]: HTMLInputElement | null }>({});
   
-  const selectedMainService = localStorage.getItem("selectedMainService") || "No service selected";
+  const mainServiceData = localStorage.getItem("selectedMainService");
+  const selectedMainService = mainServiceData ? JSON.parse(mainServiceData).label : "No service selected";
   const selectedSubService = localStorage.getItem("selectedSubService") || "No sub-service selected";
 
   const [requiredDocs, setRequiredDocs] = useState<RequiredDoc[]>(() => 
