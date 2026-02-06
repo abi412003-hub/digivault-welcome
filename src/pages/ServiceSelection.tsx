@@ -75,9 +75,13 @@ const ServiceSelection = () => {
       id: service.id,
       label: service.label,
     }));
-    // Navigate to service details after short delay for visual feedback
+    // Navigate based on service type
     setTimeout(() => {
-      navigate("/service-details");
+      if (service.id === "e-katha") {
+        navigate("/e-katha-services");
+      } else {
+        navigate("/service-details");
+      }
     }, 200);
   };
 

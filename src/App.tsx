@@ -15,7 +15,9 @@ import CreateProject from "./pages/CreateProject";
 import CreateProperty from "./pages/CreateProperty";
 import PropertyReview from "./pages/PropertyReview";
 import ServiceSelection from "./pages/ServiceSelection";
+import EKathaServices from "./pages/EKathaServices";
 import ServiceDetails from "./pages/ServiceDetails";
+import RequiredDocuments from "./pages/RequiredDocuments";
 import Settings from "./pages/Settings";
 import Proposals from "./pages/Proposals";
 import Estimate from "./pages/Estimate";
@@ -58,7 +60,9 @@ const App = () => (
           <Route path="/create-property" element={<CreateProperty />} />
           <Route path="/property-review" element={<PropertyReview />} />
           <Route path="/service-selection" element={<ServiceSelection />} />
+          <Route path="/e-katha-services" element={<EKathaServices />} />
           <Route path="/service-details" element={<ServiceDetails />} />
+          <Route path="/required-documents" element={<RequiredDocuments />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/proposals" element={<Proposals />} />
           <Route path="/estimate" element={<Estimate />} />
