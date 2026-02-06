@@ -69,7 +69,7 @@ const UploadCommonDocuments = () => {
       dobBack: documents.dobBack?.name || null,
     };
     localStorage.setItem("commonDocs", JSON.stringify(commonDocs));
-    navigate("/service-specific-documents");
+    navigate("/review-documents");
   };
 
   const UploadBox = ({ 
