@@ -1,9 +1,9 @@
-import { Home, FolderOpen, Settings } from "lucide-react";
+import { Home, Building2, ArrowLeftRight, Settings } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 
 const BottomNav = () => {
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border">
+    <nav className="fixed bottom-0 left-0 right-0 bg-background border-t border-border shadow-lg">
       <div className="flex justify-around items-center h-16 max-w-md mx-auto">
         <NavLink
           to="/dashboard"
@@ -15,12 +15,20 @@ const BottomNav = () => {
           <span className="text-xs">Home</span>
         </NavLink>
         <NavLink
-          to="/projects"
+          to="/properties"
           className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground"
           activeClassName="text-primary"
         >
-          <FolderOpen className="h-5 w-5" />
-          <span className="text-xs">Projects</span>
+          <Building2 className="h-5 w-5" />
+          <span className="text-xs">Properties</span>
+        </NavLink>
+        <NavLink
+          to="/transactions"
+          className="flex flex-col items-center gap-1 px-4 py-2 text-muted-foreground"
+          activeClassName="text-primary"
+        >
+          <ArrowLeftRight className="h-5 w-5" />
+          <span className="text-xs">Transactions</span>
         </NavLink>
         <NavLink
           to="/settings"

@@ -22,6 +22,8 @@ import Estimate from "./pages/Estimate";
 import Invoice from "./pages/Invoice";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import Properties from "./pages/Properties";
+import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +54,8 @@ const App = () => (
           <Route path="/invoice" element={<Invoice />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/properties" element={<Properties />} />
+          <Route path="/transactions" element={<Transactions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
