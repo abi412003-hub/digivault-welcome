@@ -14,11 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      activities: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          related_id: string | null
+          related_type: string | null
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date?: string
+          id?: string
+          related_id?: string | null
+          related_type?: string | null
+          status?: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          related_id?: string | null
+          related_type?: string | null
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      documents: {
+        Row: {
+          created_at: string
+          doc_group: string
+          doc_name: string
+          file_url: string | null
+          id: string
+          not_available: boolean
+          service_request_id: string
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          doc_group: string
+          doc_name: string
+          file_url?: string | null
+          id?: string
+          not_available?: boolean
+          service_request_id: string
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          doc_group?: string
+          doc_name?: string
+          file_url?: string | null
+          id?: string
+          not_available?: boolean
+          service_request_id?: string
+          status?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_service_request_id_fkey"
+            columns: ["service_request_id"]
+            isOneToOne: false
+            referencedRelation: "service_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
           id: string
+          name: string | null
           phone: string | null
+          profile_photo_url: string | null
+          registration_type: string | null
           role: string
           updated_at: string
           user_type: string
@@ -26,7 +106,10 @@ export type Database = {
         Insert: {
           created_at?: string
           id: string
+          name?: string | null
           phone?: string | null
+          profile_photo_url?: string | null
+          registration_type?: string | null
           role?: string
           updated_at?: string
           user_type?: string
@@ -34,7 +117,10 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          name?: string | null
           phone?: string | null
+          profile_photo_url?: string | null
+          registration_type?: string | null
           role?: string
           updated_at?: string
           user_type?: string
@@ -47,6 +133,7 @@ export type Database = {
           description: string | null
           id: string
           owner_id: string
+          pr_number: string | null
           title: string
         }
         Insert: {
@@ -54,6 +141,7 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id?: string
+          pr_number?: string | null
           title: string
         }
         Update: {
@@ -61,7 +149,145 @@ export type Database = {
           description?: string | null
           id?: string
           owner_id?: string
+          pr_number?: string | null
           title?: string
+        }
+        Relationships: []
+      }
+      properties: {
+        Row: {
+          address_fields: Json | null
+          address_short: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          project_id: string
+          property_name: string
+          property_type: string
+          size_unit: string | null
+          size_value: number | null
+          user_id: string
+        }
+        Insert: {
+          address_fields?: Json | null
+          address_short?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          project_id: string
+          property_name: string
+          property_type: string
+          size_unit?: string | null
+          size_value?: number | null
+          user_id: string
+        }
+        Update: {
+          address_fields?: Json | null
+          address_short?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          project_id?: string
+          property_name?: string
+          property_type?: string
+          size_unit?: string | null
+          size_value?: number | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "properties_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_requests: {
+        Row: {
+          created_at: string
+          id: string
+          main_service: string
+          project_id: string
+          property_id: string
+          status: string
+          sub_service: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          main_service: string
+          project_id: string
+          property_id: string
+          status?: string
+          sub_service?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          main_service?: string
+          project_id?: string
+          property_id?: string
+          status?: string
+          sub_service?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_requests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_requests_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number | null
+          created_at: string
+          id: string
+          item: string
+          project_name: string | null
+          property_name: string | null
+          status: string | null
+          user_id: string
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          item: string
+          project_name?: string | null
+          property_name?: string | null
+          status?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          id?: string
+          item?: string
+          project_name?: string | null
+          property_name?: string | null
+          status?: string | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -71,6 +297,7 @@ export type Database = {
     }
     Functions: {
       ensure_profile: { Args: never; Returns: undefined }
+      generate_pr_number: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
