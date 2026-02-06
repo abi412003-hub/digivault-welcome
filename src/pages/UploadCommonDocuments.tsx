@@ -1,16 +1,32 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, Upload } from "lucide-react";
+import { ChevronLeft, Upload, Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { toast } from "@/hooks/use-toast";
+import { uploadDocument } from "@/lib/api";
+
+interface DocumentField {
+  key: string;
+  label: string;
+  docName: string;
+}
+
+interface UploadStatus {
+  [key: string]: "idle" | "uploading" | "success" | "error";
+}
 
 interface DocumentFiles {
-  identityFront: File | null;
-  identityBack: File | null;
-  addressFront: File | null;
-  addressBack: File | null;
-  dobFront: File | null;
-  dobBack: File | null;
+  [key: string]: File | null;
 }
+
+const DOCUMENT_FIELDS: DocumentField[] = [
+  { key: "identityFront", label: "Upload Front Side", docName: "Identity Proof (Front)" },
+  { key: "identityBack", label: "Upload Back Side", docName: "Identity Proof (Back)" },
+  { key: "addressFront", label: "Upload Front Side", docName: "Address Proof (Front)" },
+  { key: "addressBack", label: "Upload Back Side", docName: "Address Proof (Back)" },
+  { key: "dobFront", label: "Upload Front Side", docName: "DOB Certificate (Front)" },
+  { key: "dobBack", label: "Upload Back Side", docName: "DOB Certificate (Back)" },
+];
 
 const UploadCommonDocuments = () => {
   const navigate = useNavigate();
@@ -22,57 +38,79 @@ const UploadCommonDocuments = () => {
     dobFront: null,
     dobBack: null,
   });
+  const [uploadStatus, setUploadStatus] = useState<UploadStatus>({
+    identityFront: "idle",
+    identityBack: "idle",
+    addressFront: "idle",
+    addressBack: "idle",
+    dobFront: "idle",
+    dobBack: "idle",
+  });
+  const [submitting, setSubmitting] = useState(false);
 
   // Get selected services from localStorage
   const mainServiceData = localStorage.getItem("selectedMainService");
   const selectedMainService = mainServiceData ? JSON.parse(mainServiceData).label : "No service selected";
   const selectedSubService = localStorage.getItem("selectedSubService") || "No sub-service selected";
+  const serviceRequestId = localStorage.getItem("currentServiceRequestId");
 
   // File input refs
-  const fileInputRefs = {
-    identityFront: useRef<HTMLInputElement>(null),
-    identityBack: useRef<HTMLInputElement>(null),
-    addressFront: useRef<HTMLInputElement>(null),
-    addressBack: useRef<HTMLInputElement>(null),
-    dobFront: useRef<HTMLInputElement>(null),
-    dobBack: useRef<HTMLInputElement>(null),
-  };
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
+
+  useEffect(() => {
+    if (!serviceRequestId) {
+      toast({
+        title: "Error",
+        description: "No service request found. Please start from service selection.",
+        variant: "destructive",
+      });
+      navigate("/service-selection");
+    }
+  }, [serviceRequestId, navigate]);
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleFileChange = (field: keyof DocumentFiles) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] || null;
-    setDocuments(prev => ({ ...prev, [field]: file }));
+  const handleFileChange = async (fieldKey: string, docName: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !serviceRequestId) return;
+
+    // Update local state
+    setDocuments(prev => ({ ...prev, [fieldKey]: file }));
+    setUploadStatus(prev => ({ ...prev, [fieldKey]: "uploading" }));
+
+    try {
+      // Upload to backend
+      await uploadDocument(serviceRequestId, "common", docName, file);
+      setUploadStatus(prev => ({ ...prev, [fieldKey]: "success" }));
+      toast({ title: "Uploaded", description: `${docName} uploaded successfully` });
+    } catch (error) {
+      console.error("Upload error:", error);
+      setUploadStatus(prev => ({ ...prev, [fieldKey]: "error" }));
+      setDocuments(prev => ({ ...prev, [fieldKey]: null }));
+      toast({
+        title: "Upload Failed",
+        description: error instanceof Error ? error.message : "Failed to upload document",
+        variant: "destructive",
+      });
+    }
+
+    // Reset file input
+    if (fileInputRefs.current[fieldKey]) {
+      fileInputRefs.current[fieldKey]!.value = "";
+    }
   };
 
-  const triggerFileInput = (field: keyof DocumentFiles) => {
-    fileInputRefs[field].current?.click();
+  const triggerFileInput = (fieldKey: string) => {
+    fileInputRefs.current[fieldKey]?.click();
   };
 
-  const isAllDocumentsUploaded = 
-    documents.identityFront && 
-    documents.identityBack && 
-    documents.addressFront && 
-    documents.addressBack && 
-    documents.dobFront && 
-    documents.dobBack;
+  const getUploadedCount = () => {
+    return Object.values(uploadStatus).filter(status => status === "success").length;
+  };
 
   const handleNext = () => {
-    // Store document info in localStorage (storing file names for reference)
-    const commonDocs = {
-      identityFront: documents.identityFront?.name || null,
-      identityBack: documents.identityBack?.name || null,
-      addressFront: documents.addressFront?.name || null,
-      addressBack: documents.addressBack?.name || null,
-      dobFront: documents.dobFront?.name || null,
-      dobBack: documents.dobBack?.name || null,
-    };
-    localStorage.setItem("commonDocs", JSON.stringify(commonDocs));
-    
-    // Get serviceRequestId from localStorage and pass to review page
-    const serviceRequestId = localStorage.getItem("currentServiceRequestId");
     if (serviceRequestId) {
       navigate(`/review-documents?serviceRequestId=${serviceRequestId}`);
     } else {
@@ -81,64 +119,98 @@ const UploadCommonDocuments = () => {
   };
 
   const UploadBox = ({ 
+    fieldKey,
     label, 
-    file, 
+    file,
+    status,
     onClick 
   }: { 
+    fieldKey: string;
     label: string; 
-    file: File | null; 
+    file: File | null;
+    status: "idle" | "uploading" | "success" | "error";
     onClick: () => void;
-  }) => (
-    <button
-      onClick={onClick}
-      className="flex-1 min-w-0 h-12 px-3 flex items-center justify-between gap-2 border border-border rounded-lg bg-background hover:bg-muted/50 transition-colors"
-    >
-      <span className="text-xs text-muted-foreground truncate">
-        {file ? file.name : label}
-      </span>
-      <Upload className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-    </button>
-  );
+  }) => {
+    const isUploading = status === "uploading";
+    const isSuccess = status === "success";
+    const isError = status === "error";
+
+    return (
+      <button
+        onClick={onClick}
+        disabled={isUploading}
+        className={`flex-1 min-w-0 h-12 px-3 flex items-center justify-between gap-2 border rounded-lg transition-colors ${
+          isSuccess
+            ? "border-primary bg-primary/10"
+            : isError
+            ? "border-destructive bg-destructive/10"
+            : "border-border bg-background hover:bg-muted/50"
+        }`}
+      >
+        <span className={`text-xs truncate ${
+          isSuccess ? "text-primary" : "text-muted-foreground"
+        }`}>
+          {file ? file.name : label}
+        </span>
+        {isUploading ? (
+          <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+        ) : isSuccess ? (
+          <Check className="w-4 h-4 text-primary flex-shrink-0" />
+        ) : isError ? (
+          <X className="w-4 h-4 text-destructive flex-shrink-0" />
+        ) : (
+          <Upload className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        )}
+      </button>
+    );
+  };
 
   const DocumentSection = ({ 
     title, 
-    frontField, 
-    backField 
+    frontField,
+    backField,
   }: { 
     title: string; 
-    frontField: keyof DocumentFiles; 
-    backField: keyof DocumentFiles;
+    frontField: DocumentField;
+    backField: DocumentField;
   }) => (
     <div className="space-y-2">
       <label className="text-sm font-medium text-foreground">{title}</label>
       <div className="flex gap-3">
         <UploadBox 
-          label="Upload Front Side" 
-          file={documents[frontField]} 
-          onClick={() => triggerFileInput(frontField)} 
+          fieldKey={frontField.key}
+          label={frontField.label}
+          file={documents[frontField.key]} 
+          status={uploadStatus[frontField.key]}
+          onClick={() => triggerFileInput(frontField.key)} 
         />
         <UploadBox 
-          label="Upload Back Side" 
-          file={documents[backField]} 
-          onClick={() => triggerFileInput(backField)} 
+          fieldKey={backField.key}
+          label={backField.label}
+          file={documents[backField.key]}
+          status={uploadStatus[backField.key]}
+          onClick={() => triggerFileInput(backField.key)} 
         />
       </div>
       <input
-        ref={fileInputRefs[frontField]}
+        ref={el => { fileInputRefs.current[frontField.key] = el; }}
         type="file"
         accept="image/*,.pdf"
         className="hidden"
-        onChange={handleFileChange(frontField)}
+        onChange={(e) => handleFileChange(frontField.key, frontField.docName, e)}
       />
       <input
-        ref={fileInputRefs[backField]}
+        ref={el => { fileInputRefs.current[backField.key] = el; }}
         type="file"
         accept="image/*,.pdf"
         className="hidden"
-        onChange={handleFileChange(backField)}
+        onChange={(e) => handleFileChange(backField.key, backField.docName, e)}
       />
     </div>
   );
+
+  const uploadedCount = getUploadedCount();
+  const isAnyUploading = Object.values(uploadStatus).some(s => s === "uploading");
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -175,33 +247,48 @@ const UploadCommonDocuments = () => {
           </div>
         </div>
 
+        {/* Upload Progress */}
+        {uploadedCount > 0 && (
+          <div className="mb-4 p-3 bg-primary/10 border border-primary/30 rounded-lg">
+            <p className="text-sm text-primary text-center">
+              {uploadedCount} of 6 documents uploaded
+            </p>
+          </div>
+        )}
+
         {/* Document Upload Sections */}
         <div className="space-y-6">
           <DocumentSection 
             title="Proof of Identity" 
-            frontField="identityFront" 
-            backField="identityBack" 
+            frontField={DOCUMENT_FIELDS[0]}
+            backField={DOCUMENT_FIELDS[1]}
           />
           <DocumentSection 
             title="Proof of Address" 
-            frontField="addressFront" 
-            backField="addressBack" 
+            frontField={DOCUMENT_FIELDS[2]}
+            backField={DOCUMENT_FIELDS[3]}
           />
           <DocumentSection 
             title="DOB Certificate" 
-            frontField="dobFront" 
-            backField="dobBack" 
+            frontField={DOCUMENT_FIELDS[4]}
+            backField={DOCUMENT_FIELDS[5]}
           />
         </div>
+
+        {/* Helper Text */}
+        <p className="text-xs text-muted-foreground text-center mt-6">
+          You can proceed without uploading all documents. Missing documents can be uploaded on the review screen.
+        </p>
       </div>
 
       {/* Next Button */}
       <div className="p-4 border-t border-border">
         <Button 
           onClick={handleNext}
+          disabled={isAnyUploading}
           className="w-full h-12"
         >
-          Next
+          {isAnyUploading ? "Uploading..." : "Next"}
         </Button>
       </div>
     </div>
