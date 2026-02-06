@@ -24,6 +24,9 @@ import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
 import Properties from "./pages/Properties";
 import Transactions from "./pages/Transactions";
+import ProjectDetails from "./pages/ProjectDetails";
+import ProjectOpinion from "./pages/ProjectOpinion";
+import EFiles from "./pages/EFiles";
 import NotificationsSettings from "./pages/settings/NotificationsSettings";
 import LanguagePreference from "./pages/settings/LanguagePreference";
 import PrivacySettings from "./pages/settings/PrivacySettings";
@@ -63,6 +66,9 @@ const App = () => (
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/properties" element={<Properties />} />
           <Route path="/transactions" element={<Transactions />} />
+          <Route path="/project-details" element={<ProjectDetails />} />
+          <Route path="/project-opinion" element={<ProjectOpinion />} />
+          <Route path="/e-files" element={<EFiles />} />
           <Route path="/settings/notifications" element={<NotificationsSettings />} />
           <Route path="/settings/language" element={<LanguagePreference />} />
           <Route path="/settings/privacy" element={<PrivacySettings />} />
