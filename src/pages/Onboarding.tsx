@@ -30,7 +30,7 @@ const Onboarding = () => {
         setCurrentScreen("screen3");
         break;
       case "screen3":
-        navigate("/register");
+        navigate("/registration-type");
         break;
     }
   };
@@ -50,7 +50,7 @@ const Onboarding = () => {
   };
 
   const handleSkip = () => {
-    navigate("/register");
+    navigate("/registration-type");
   };
 
   const getProgressDots = () => {
