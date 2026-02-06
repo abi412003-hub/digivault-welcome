@@ -10,7 +10,8 @@ import {
   BookOpen, 
   HelpCircle, 
   LogOut,
-  ChevronRight
+  ChevronRight,
+  LayoutGrid
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -92,6 +93,7 @@ const Settings = () => {
     { label: "Contact Support", icon: HeadphonesIcon, path: "/settings/support" },
     { label: "User Manual", icon: BookOpen, path: "/settings/manual" },
     { label: "FAQ/Help", icon: HelpCircle, path: "/settings/faq" },
+    { label: "All Pages", icon: LayoutGrid, path: "/all-pages" },
     { label: "Log Out", icon: LogOut, action: () => setShowLogoutDialog(true) },
   ];
 
