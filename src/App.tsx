@@ -35,7 +35,6 @@ import ContactSupport from "./pages/settings/ContactSupport";
 import UserManual from "./pages/settings/UserManual";
 import FAQHelp from "./pages/settings/FAQHelp";
 import NotFound from "./pages/NotFound";
-import Sitemap from "./pages/Sitemap";
 
 const queryClient = new QueryClient();
 
@@ -77,7 +76,6 @@ const App = () => (
           <Route path="/settings/support" element={<ContactSupport />} />
           <Route path="/settings/manual" element={<UserManual />} />
           <Route path="/settings/faq" element={<FAQHelp />} />
-          <Route path="/sitemap" element={<Sitemap />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

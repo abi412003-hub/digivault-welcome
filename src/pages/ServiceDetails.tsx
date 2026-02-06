@@ -64,10 +64,7 @@ const ServiceDetails = () => {
 
       {/* Footer */}
       <div className="sticky bottom-0 bg-background border-t border-border p-4">
-        <Button 
-          className="w-full h-12 rounded-xl font-semibold"
-          onClick={() => navigate("/dashboard")}
-        >
+        <Button className="w-full h-12 rounded-xl font-semibold">
           Continue
         </Button>
       </div>
