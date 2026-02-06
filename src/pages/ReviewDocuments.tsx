@@ -26,19 +26,33 @@ interface ServiceRequest {
   status: string;
 }
 
-// Required documents per sub-service (can be expanded)
+// Required documents per sub-service
 const REQUIRED_DOCUMENTS: Record<string, string[]> = {
-  "New E-Khatha Registration": [
-    "Pan",
-    "Aadhar",
-    "Birth",
+  "New E-Katha Registration": [
+    "Pan Card",
+    "Aadhar Card",
+    "Birth Certificate",
     "Sale Deed",
     "Land Deed",
   ],
+  "Khata Bifurcation": [
+    "Pan Card",
+    "Aadhar Card",
+    "Existing Khata",
+    "Property Documents",
+    "NOC from Co-owners",
+  ],
+  "Khata Amalgamation": [
+    "Pan Card",
+    "Aadhar Card",
+    "All Khata Certificates",
+    "Property Documents",
+    "Amalgamation Request Letter",
+  ],
   default: [
-    "Pan",
-    "Aadhar",
-    "Birth",
+    "Pan Card",
+    "Aadhar Card",
+    "Birth Certificate",
     "Sale Deed",
     "Land Deed",
   ],
@@ -64,25 +78,9 @@ const ReviewDocuments = () => {
   // Fetch service request and documents
   useEffect(() => {
     const fetchData = async () => {
-      // Bypass mode: show mock data if no serviceRequestId
       if (!resolvedServiceRequestId) {
-        setServiceRequest({
-          id: "mock",
-          main_service: "E-Khatha",
-          sub_service: "New E-Khatha Registration",
-          status: "draft",
-        });
-        setDocuments([
-          { id: "1", doc_group: "common", doc_name: "Pan", file_url: "mock", not_available: false, status: "uploaded" },
-          { id: "2", doc_group: "common", doc_name: "Aadhar", file_url: "mock", not_available: false, status: "uploaded" },
-          { id: "3", doc_group: "common", doc_name: "Birth", file_url: "mock", not_available: false, status: "uploaded" },
-          { id: "4", doc_group: "required", doc_name: "Pan", file_url: "mock", not_available: false, status: "uploaded" },
-          { id: "5", doc_group: "required", doc_name: "Aadhar", file_url: null, not_available: false, status: null },
-          { id: "6", doc_group: "required", doc_name: "EC", file_url: null, not_available: true, status: null },
-          { id: "7", doc_group: "required", doc_name: "NOC", file_url: null, not_available: true, status: null },
-          { id: "8", doc_group: "required", doc_name: "Property Survey Sketch / Layout Plan", file_url: null, not_available: true, status: null },
-        ]);
-        setLoading(false);
+        toast({ title: "Error", description: "No service request found", variant: "destructive" });
+        navigate("/dashboard");
         return;
       }
 
@@ -108,6 +106,7 @@ const ReviewDocuments = () => {
       } catch (error) {
         console.error("Error fetching data:", error);
         toast({ title: "Error", description: "Failed to load data", variant: "destructive" });
+        navigate("/dashboard");
       } finally {
         setLoading(false);
       }
@@ -115,7 +114,7 @@ const ReviewDocuments = () => {
 
     fetchData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedServiceRequestId, navigate]);
+  }, [resolvedServiceRequestId]);
 
   const handleBack = () => {
     navigate(-1);
@@ -224,6 +223,13 @@ const ReviewDocuments = () => {
     try {
       const requiredDocNames = getRequiredDocs();
       await submitServiceRequest(resolvedServiceRequestId, requiredDocNames);
+      
+      // Clear localStorage items used in the flow
+      localStorage.removeItem("currentServiceRequestId");
+      localStorage.removeItem("selectedMainService");
+      localStorage.removeItem("selectedSubService");
+      localStorage.removeItem("commonDocs");
+      
       toast({ title: "Submitted", description: "Your service request has been submitted" });
       navigate("/dashboard");
     } catch (error) {
@@ -291,21 +297,25 @@ const ReviewDocuments = () => {
           <div className="mb-4">
             <p className="text-xs text-muted-foreground mb-2">Common Document</p>
             <div className="grid grid-cols-3 gap-3">
-              {commonDocs.map((doc) => (
-                <button
-                  key={doc.id}
-                  onClick={() => handleTileClick("common", doc.doc_name)}
-                  className="relative aspect-square rounded-xl bg-primary flex flex-col items-center justify-center p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
-                >
-                  <FileText className="w-8 h-8 mb-1" />
-                  <span className="text-xs font-medium text-center truncate w-full">
-                    {doc.doc_name}
-                  </span>
-                  <div className="absolute top-2 right-2">
-                    <FileText className="w-3 h-3" />
-                  </div>
-                </button>
-              ))}
+              {commonDocs.length > 0 ? (
+                commonDocs.map((doc) => (
+                  <button
+                    key={doc.id}
+                    onClick={() => handleTileClick("common", doc.doc_name)}
+                    className="relative aspect-square rounded-xl bg-primary flex flex-col items-center justify-center p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    <FileText className="w-8 h-8 mb-1" />
+                    <span className="text-xs font-medium text-center truncate w-full">
+                      {doc.doc_name}
+                    </span>
+                    <div className="absolute top-2 right-2">
+                      <FileText className="w-3 h-3" />
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <p className="col-span-3 text-xs text-muted-foreground italic">No common documents uploaded</p>
+              )}
               {/* Other Documents tile */}
               <button
                 onClick={() => handleTileClick("common", "Other")}
