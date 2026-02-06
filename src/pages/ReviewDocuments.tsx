@@ -115,15 +115,6 @@ const ReviewDocuments = () => {
   };
 
   const handleSaveAndSubmit = () => {
-    if (!validateDocs()) {
-      toast({
-        title: "Validation Error",
-        description: "Please upload or mark not available for all required documents.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     const serviceRequest = saveDocuments("Submitted");
 
     // Create activity entries
