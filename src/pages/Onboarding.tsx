@@ -37,14 +37,14 @@ const Onboarding = () => {
 
   const handleBack = () => {
     switch (currentScreen) {
+      case "screen1":
+        // Stay on first screen, no back navigation
+        break;
       case "screen2":
         setCurrentScreen("screen1");
         break;
       case "screen3":
         setCurrentScreen("screen2");
-        break;
-      default:
-        navigate("/");
         break;
     }
   };
@@ -109,12 +109,16 @@ const Onboarding = () => {
     <div className="min-h-screen bg-background flex flex-col px-6 py-8">
       {/* Header with Back and Skip */}
       <div className="flex justify-between items-center">
-        <button
-          onClick={handleBack}
-          className="w-10 h-10 flex items-center justify-center text-foreground hover:text-muted-foreground transition-colors"
-        >
-          <ChevronLeft className="w-6 h-6" />
-        </button>
+        {currentScreen !== "screen1" ? (
+          <button
+            onClick={handleBack}
+            className="w-10 h-10 flex items-center justify-center text-foreground hover:text-muted-foreground transition-colors"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+        ) : (
+          <div className="w-10 h-10" /> // Spacer
+        )}
         
         <button
           onClick={handleSkip}
@@ -147,7 +151,7 @@ const Onboarding = () => {
       </div>
 
       {/* Bottom Section */}
-      <div className="flex flex-col items-center gap-6 pb-8">
+      <div className="flex flex-col items-center gap-6 pb-4">
         {/* Next Button - Ring style */}
         <button
           onClick={handleNext}
@@ -158,6 +162,17 @@ const Onboarding = () => {
 
         {/* Progress Dots */}
         {getProgressDots()}
+
+        {/* Already have account link */}
+        <p className="text-center text-muted-foreground text-sm mt-4">
+          Already have an account?{" "}
+          <button
+            onClick={() => navigate("/login")}
+            className="text-primary font-medium hover:underline"
+          >
+            Login
+          </button>
+        </p>
       </div>
     </div>
   );
