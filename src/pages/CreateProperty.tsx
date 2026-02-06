@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, MapPin, Loader2 } from "lucide-react";
+import { ChevronLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,6 +16,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProperties } from "@/hooks/useProperties";
 import { toast } from "sonner";
+import { LocationPicker } from "@/components/LocationPicker";
 
 interface PropertyForm {
   propertyType: string;
@@ -50,7 +51,7 @@ const CreateProperty = () => {
   // Get current project from localStorage
   const [currentProject, setCurrentProject] = useState<{ id: string; title: string } | null>(null);
   const [projectRefId, setProjectRefId] = useState("");
-  const [isLocating, setIsLocating] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("currentProject");
@@ -131,44 +132,15 @@ const CreateProperty = () => {
   };
 
   const handleSelectLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
-      return;
-    }
+    setShowLocationPicker(true);
+  };
 
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setForm((prev) => ({
-          ...prev,
-          latitude: position.coords.latitude.toFixed(6),
-          longitude: position.coords.longitude.toFixed(6),
-        }));
-        setIsLocating(false);
-        toast.success("Location captured successfully!");
-      },
-      (error) => {
-        setIsLocating(false);
-        switch (error.code) {
-          case error.PERMISSION_DENIED:
-            toast.error("Location permission denied. Please enable location access.");
-            break;
-          case error.POSITION_UNAVAILABLE:
-            toast.error("Location information unavailable.");
-            break;
-          case error.TIMEOUT:
-            toast.error("Location request timed out.");
-            break;
-          default:
-            toast.error("Unable to get your location.");
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    );
+  const handleLocationSelect = (lat: string, lng: string) => {
+    setForm((prev) => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+    }));
   };
 
   const handleNext = () => {
@@ -620,14 +592,9 @@ const CreateProperty = () => {
               variant="outline"
               className="w-full h-12 gap-2"
               onClick={handleSelectLocation}
-              disabled={isLocating}
             >
-              {isLocating ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <MapPin className="w-4 h-4" />
-              )}
-              {isLocating ? "Getting location..." : "Select the location"}
+              <MapPin className="w-4 h-4" />
+              Select the location
             </Button>
           </div>
 
@@ -635,6 +602,15 @@ const CreateProperty = () => {
           <div className="h-20" />
         </div>
       </ScrollArea>
+
+      {/* Location Picker Dialog */}
+      <LocationPicker
+        open={showLocationPicker}
+        onOpenChange={setShowLocationPicker}
+        initialLat={form.latitude}
+        initialLng={form.longitude}
+        onLocationSelect={handleLocationSelect}
+      />
 
       {/* Footer */}
       <div className="sticky bottom-0 bg-background border-t border-border p-4">
