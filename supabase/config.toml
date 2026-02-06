@@ -1,1 +1,40 @@
 project_id = "nzvbpvjkiqizsuhysjfp"
+
+[functions.ensure-user-profile]
+verify_jwt = false
+
+[functions.create-project]
+verify_jwt = false
+
+[functions.list-projects]
+verify_jwt = false
+
+[functions.create-property]
+verify_jwt = false
+
+[functions.list-properties]
+verify_jwt = false
+
+[functions.service-request]
+verify_jwt = false
+
+[functions.upload-document]
+verify_jwt = false
+
+[functions.toggle-not-available]
+verify_jwt = false
+
+[functions.delete-document]
+verify_jwt = false
+
+[functions.save-draft]
+verify_jwt = false
+
+[functions.submit-service-request]
+verify_jwt = false
+
+[functions.list-activities]
+verify_jwt = false
+
+[functions.list-transactions]
+verify_jwt = false
