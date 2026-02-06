@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft, Upload, Check, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { uploadDocument } from "@/lib/api";
 
 interface DocumentField {
   key: string;
@@ -46,55 +45,33 @@ const UploadCommonDocuments = () => {
     dobFront: "idle",
     dobBack: "idle",
   });
-  const [submitting, setSubmitting] = useState(false);
 
   // Get selected services from localStorage
   const mainServiceData = localStorage.getItem("selectedMainService");
   const selectedMainService = mainServiceData ? JSON.parse(mainServiceData).label : "No service selected";
   const selectedSubService = localStorage.getItem("selectedSubService") || "No sub-service selected";
-  const serviceRequestId = localStorage.getItem("currentServiceRequestId");
 
   // File input refs
   const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
-
-  useEffect(() => {
-    if (!serviceRequestId) {
-      toast({
-        title: "Error",
-        description: "No service request found. Please start from service selection.",
-        variant: "destructive",
-      });
-      navigate("/service-selection");
-    }
-  }, [serviceRequestId, navigate]);
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handleFileChange = async (fieldKey: string, docName: string, event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (fieldKey: string, docName: string, event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file || !serviceRequestId) return;
+    if (!file) return;
 
-    // Update local state
+    // Update local state - store files locally only (no backend upload)
     setDocuments(prev => ({ ...prev, [fieldKey]: file }));
-    setUploadStatus(prev => ({ ...prev, [fieldKey]: "uploading" }));
-
-    try {
-      // Upload to backend
-      await uploadDocument(serviceRequestId, "common", docName, file);
-      setUploadStatus(prev => ({ ...prev, [fieldKey]: "success" }));
-      toast({ title: "Uploaded", description: `${docName} uploaded successfully` });
-    } catch (error) {
-      console.error("Upload error:", error);
-      setUploadStatus(prev => ({ ...prev, [fieldKey]: "error" }));
-      setDocuments(prev => ({ ...prev, [fieldKey]: null }));
-      toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload document",
-        variant: "destructive",
-      });
-    }
+    setUploadStatus(prev => ({ ...prev, [fieldKey]: "success" }));
+    
+    // Store document info in localStorage for later use
+    const storedDocs = JSON.parse(localStorage.getItem("uploadedDocuments") || "{}");
+    storedDocs[fieldKey] = { docName, fileName: file.name };
+    localStorage.setItem("uploadedDocuments", JSON.stringify(storedDocs));
+    
+    toast({ title: "Selected", description: `${docName} selected successfully` });
 
     // Reset file input
     if (fileInputRefs.current[fieldKey]) {
@@ -111,11 +88,7 @@ const UploadCommonDocuments = () => {
   };
 
   const handleNext = () => {
-    if (serviceRequestId) {
-      navigate(`/review-documents?serviceRequestId=${serviceRequestId}`);
-    } else {
-      navigate("/review-documents");
-    }
+    navigate("/review-documents");
   };
 
   const UploadBox = ({ 
