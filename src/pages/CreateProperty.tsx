@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronLeft, MapPin } from "lucide-react";
+import { ChevronLeft, MapPin, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,7 @@ const CreateProperty = () => {
   // Get current project from localStorage
   const [currentProject, setCurrentProject] = useState<{ id: string; title: string } | null>(null);
   const [projectRefId, setProjectRefId] = useState("");
+  const [isLocating, setIsLocating] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("currentProject");
@@ -130,13 +131,44 @@ const CreateProperty = () => {
   };
 
   const handleSelectLocation = () => {
-    // Placeholder: fill dummy coordinates
-    setForm((prev) => ({
-      ...prev,
-      latitude: "12.9716",
-      longitude: "77.5946",
-    }));
-    toast.info("Map selection coming soon. Dummy coordinates added.");
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setForm((prev) => ({
+          ...prev,
+          latitude: position.coords.latitude.toFixed(6),
+          longitude: position.coords.longitude.toFixed(6),
+        }));
+        setIsLocating(false);
+        toast.success("Location captured successfully!");
+      },
+      (error) => {
+        setIsLocating(false);
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            toast.error("Location permission denied. Please enable location access.");
+            break;
+          case error.POSITION_UNAVAILABLE:
+            toast.error("Location information unavailable.");
+            break;
+          case error.TIMEOUT:
+            toast.error("Location request timed out.");
+            break;
+          default:
+            toast.error("Unable to get your location.");
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
   };
 
   const handleNext = () => {
@@ -588,9 +620,14 @@ const CreateProperty = () => {
               variant="outline"
               className="w-full h-12 gap-2"
               onClick={handleSelectLocation}
+              disabled={isLocating}
             >
-              <MapPin className="w-4 h-4" />
-              Select the location
+              {isLocating ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <MapPin className="w-4 h-4" />
+              )}
+              {isLocating ? "Getting location..." : "Select the location"}
             </Button>
           </div>
 
