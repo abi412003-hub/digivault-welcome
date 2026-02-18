@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft, Upload, Scan, Calendar } from "lucide-react";
+import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -150,15 +153,78 @@ const IndividualRegistration = () => {
     navigate(-1);
   };
 
-  const handleNext = () => {
-    // Store in local storage
-    const profileData = {
-      ...profile,
-      profilePhoto: null, // Can't store File in localStorage
-      dateOfBirth: profile.dateOfBirth?.toISOString(),
-    };
-    localStorage.setItem("individualProfile", JSON.stringify(profileData));
-    navigate("/projects/create");
+  const { toast } = useToast();
+
+  const handleNext = async () => {
+    if (!profile.fullName.trim()) {
+      toast({ title: "Error", description: "Full name is required", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/login"); return; }
+
+      const phone = session.user.phone?.replace("+91", "") || profile.phone;
+
+      // Upload profile photo to Supabase Storage if selected
+      let profilePhotoUrl = null;
+      if (profile.profilePhoto) {
+        const fileExt = profile.profilePhoto.name.split('.').pop();
+        const filePath = `${session.user.id}/avatar.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, profile.profilePhoto, { upsert: true });
+        if (!uploadError && uploadData) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          profilePhotoUrl = urlData.publicUrl;
+        }
+      }
+
+      // Build address JSON
+      const address = {
+        door_no: profile.doorNo, building_name: profile.buildingName,
+        cross_road: profile.crossRoad, main_road: profile.mainRoad,
+        landmark: profile.landmark, area_name: profile.areaName,
+        state: profile.state, zone: profile.zone,
+        district: profile.district, taluk: profile.taluk,
+        municipal_type: profile.municipalType,
+        pattana_panchayathi: profile.pattanaPanchayathi,
+        ward_no: profile.wardNo, post_office: profile.postOffice,
+        pincode: profile.pincode,
+      };
+
+      await api.post("/v1/auth/register/individual", {
+        prefix: profile.prefix || null,
+        full_name: profile.fullName,
+        phone: phone,
+        relation_type: profile.relationPrefix || null,
+        relation_name: profile.relationName || null,
+        date_of_birth: profile.dateOfBirth ? profile.dateOfBirth.toISOString().split("T")[0] : null,
+        age: profile.age || null,
+        email: profile.email || null,
+        whatsapp_no: profile.whatsappNo || null,
+        aadhaar: profile.aadhaarNo || null,
+        pan: profile.panNo || null,
+        address_type: profile.areaType || null,
+        address: address,
+        profile_photo_url: profilePhotoUrl,
+        referral_code: profile.referralCode || null,
+      });
+
+      // Keep localStorage backup
+      const profileData = {
+        ...profile, profilePhoto: null,
+        dateOfBirth: profile.dateOfBirth?.toISOString(),
+      };
+      localStorage.setItem("individualProfile", JSON.stringify(profileData));
+
+      toast({ title: "Success", description: "Registration saved!" });
+      navigate("/projects/create");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast({ title: "Error", description: error.message || "Failed to save registration", variant: "destructive" });
+    }
   };
 
   // Sample data for dropdowns

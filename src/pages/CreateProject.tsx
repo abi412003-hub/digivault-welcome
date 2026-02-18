@@ -5,10 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ChevronLeft } from "lucide-react";
+import { api } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const CreateProject = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isLoading: authLoading } = useAuth();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -24,27 +28,34 @@ const CreateProject = () => {
     }
   };
 
-  const handleNext = () => {
-    // Generate project object
-    const newProject = {
-      id: crypto.randomUUID(),
-      title: title.trim(),
-      description: description.trim(),
-      createdAt: new Date().toISOString(),
-    };
+  const { toast } = useToast();
 
-    // Get existing projects from localStorage
-    const existingProjects = JSON.parse(localStorage.getItem("projects") || "[]");
-    
-    // Add new project to the list
-    const updatedProjects = [...existingProjects, newProject];
-    localStorage.setItem("projects", JSON.stringify(updatedProjects));
-    
-    // Set as current project
-    localStorage.setItem("currentProject", JSON.stringify(newProject));
+  const handleNext = async () => {
+    if (!title.trim()) return;
 
-    // Navigate to Property Details screen
-    navigate("/create-property", { state: { projectId: newProject.id } });
+    try {
+      const result = await api.post("/v1/client/projects", {
+        name: title.trim(),
+        description: description.trim() || "",
+      });
+
+      const projectId = result?.data?.id || crypto.randomUUID();
+
+      // Store for downstream pages
+      const newProject = { id: projectId, title: title.trim(), description: description.trim(), createdAt: new Date().toISOString() };
+      localStorage.setItem("currentProject", JSON.stringify(newProject));
+      localStorage.setItem("currentProjectId", projectId);
+
+      // Also keep localStorage list as fallback
+      const existingProjects = JSON.parse(localStorage.getItem("projects") || "[]");
+      localStorage.setItem("projects", JSON.stringify([...existingProjects, newProject]));
+
+      toast({ title: "Success", description: "Project created!" });
+      navigate("/create-property", { state: { projectId } });
+    } catch (error: any) {
+      console.error("Project creation error:", error);
+      toast({ title: "Error", description: error.message || "Failed to create project", variant: "destructive" });
+    }
   };
 
   const isNextDisabled = !title.trim();

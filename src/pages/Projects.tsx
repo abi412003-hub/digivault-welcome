@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FolderOpen, Plus } from "lucide-react";
@@ -9,6 +10,7 @@ import BottomNav from "@/components/BottomNav";
 interface Project {
   id: string;
   title: string;
+  name?: string;
   description: string | null;
   created_at: string;
 }
@@ -21,21 +23,50 @@ const Projects = () => {
 
   const fetchProjects = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("projects")
-      .select("id, title, description, created_at")
-      .order("created_at", { ascending: false });
+    try {
+      // Try API first
+      const result = await api.get("/v1/client/projects");
+      if (result?.data) {
+        const mapped = result.data.map((p: any) => ({
+          id: p.id,
+          title: p.title || p.name || "Untitled",
+          description: p.description,
+          created_at: p.created_at,
+        }));
+        setProjects(mapped);
+        setLoading(false);
+        return;
+      }
+    } catch (e) {
+      console.error("API fetch failed, trying localStorage:", e);
+    }
 
-    if (error) {
-      console.error("Error fetching projects:", error);
-    } else {
-      setProjects(data || []);
+    // Fallback to localStorage
+    try {
+      const stored = JSON.parse(localStorage.getItem("projects") || "[]");
+      setProjects(stored.map((p: any) => ({
+        id: p.id,
+        title: p.title || "Untitled",
+        description: p.description || null,
+        created_at: p.createdAt || new Date().toISOString(),
+      })));
+    } catch (e) {
+      console.error("localStorage fallback failed:", e);
     }
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchProjects();
+    // Auth check
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/login");
+        return;
+      }
+      fetchProjects();
+    };
+    checkAuth();
   }, [location.state]);
 
   return (

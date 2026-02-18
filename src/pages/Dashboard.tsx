@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
+import { api } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,10 +44,38 @@ const getStatusBadgeStyles = (status: string) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const { activities, getStatusCounts } = useActivities();
-  const { projectCount } = useProjects();
+  const { activities: localActivities, getStatusCounts: getLocalStatusCounts } = useActivities();
+  const { projectCount: localProjectCount } = useProjects();
 
-  const statusCounts = getStatusCounts();
+  const [apiData, setApiData] = useState<any>(null);
+  const [apiProjectCount, setApiProjectCount] = useState<number | null>(null);
+
+  // Fetch from backend API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [dashRes, projRes] = await Promise.all([
+          api.get("/v1/client/dashboard").catch(() => null),
+          api.get("/v1/client/projects").catch(() => null),
+        ]);
+        if (dashRes?.data) setApiData(dashRes.data);
+        if (projRes?.data) setApiProjectCount(projRes.data.length);
+      } catch (e) {
+        console.error("Dashboard fetch error:", e);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Use API data when available, localStorage as fallback
+  const localCounts = getLocalStatusCounts();
+  const statusCounts = apiData
+    ? { completed: apiData.completed_services || 0, ongoing: apiData.ongoing_services || 0, pending: apiData.pending_services || 0 }
+    : localCounts;
+  const projectCount = apiProjectCount ?? localProjectCount;
+  const activities = apiData?.recent_activity?.map((a: any) => ({
+    id: a.id, title: a.title, date: new Date(a.created_at).toLocaleDateString(), status: "Ongoing" as const,
+  })) || localActivities;
 
   const statusCards = [
     { label: "Completed", count: statusCounts.completed, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },

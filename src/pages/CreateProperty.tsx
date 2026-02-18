@@ -17,6 +17,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useProperties } from "@/hooks/useProperties";
 import { toast } from "sonner";
 import { LocationPicker } from "@/components/LocationPicker";
+import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 
 interface PropertyForm {
   propertyType: string;
@@ -46,6 +48,7 @@ interface PropertyForm {
 
 const CreateProperty = () => {
   const navigate = useNavigate();
+  const { isLoading: authLoading } = useAuth();
   const { addProperty } = useProperties();
 
   // Get current project from localStorage
@@ -150,45 +153,66 @@ const CreateProperty = () => {
     }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!currentProject) {
       toast.error("No project found. Please create a project first.");
       return;
     }
 
-    // Create property and save
-    const property = addProperty({
-      projectId: currentProject.id,
-      propertyType: form.propertyType,
-      propertyName: form.propertyName,
-      address: form.address,
-      propertySizeUnit: form.propertySizeUnit,
-      propertySize: form.propertySize,
-      doorNo: form.doorNo,
-      buildingName: form.buildingName,
-      crossRoad: form.crossRoad,
-      mainRoad: form.mainRoad,
-      landmark: form.landmark,
-      areaName: form.areaName,
-      state: form.state,
-      zone: form.zone,
-      district: form.district,
-      taluk: form.taluk,
-      areaType: form.areaType,
-      municipalType: form.municipalType,
-      pattanaPanchayathi: form.pattanaPanchayathi,
-      urbanWard: form.urbanWard,
-      postOffice: form.postOffice,
-      pincode: form.pincode,
-      latitude: form.latitude,
-      longitude: form.longitude,
-    });
+    const projectId = localStorage.getItem("currentProjectId") || currentProject.id;
 
-    // Store current property
-    localStorage.setItem("currentProperty", JSON.stringify(property));
+    try {
+      const result = await api.post("/v1/client/properties", {
+        project_id: projectId,
+        name: form.propertyName || null,
+        type: form.propertyType || null,
+        address: formattedAddress || form.address || null,
+        latitude: form.latitude ? parseFloat(form.latitude) : null,
+        longitude: form.longitude ? parseFloat(form.longitude) : null,
+        size: form.propertySize ? `${form.propertySize} ${form.propertySizeUnit || ""}`.trim() : null,
+        size_unit: form.propertySizeUnit || null,
+      });
 
-    // Navigate to property review
-    navigate("/property-review");
+      // Store property ID for Service Selection
+      if (result?.data?.id) {
+        localStorage.setItem("currentPropertyId", result.data.id);
+      }
+
+      // Also save via localStorage hook as fallback
+      const property = addProperty({
+        projectId: currentProject.id,
+        propertyType: form.propertyType,
+        propertyName: form.propertyName,
+        address: form.address,
+        propertySizeUnit: form.propertySizeUnit,
+        propertySize: form.propertySize,
+        doorNo: form.doorNo,
+        buildingName: form.buildingName,
+        crossRoad: form.crossRoad,
+        mainRoad: form.mainRoad,
+        landmark: form.landmark,
+        areaName: form.areaName,
+        state: form.state,
+        zone: form.zone,
+        district: form.district,
+        taluk: form.taluk,
+        areaType: form.areaType,
+        municipalType: form.municipalType,
+        pattanaPanchayathi: form.pattanaPanchayathi,
+        urbanWard: form.urbanWard,
+        postOffice: form.postOffice,
+        pincode: form.pincode,
+        latitude: form.latitude,
+        longitude: form.longitude,
+      });
+
+      localStorage.setItem("currentProperty", JSON.stringify(property));
+      toast.success("Property created!");
+      navigate("/property-review");
+    } catch (error: any) {
+      console.error("Property creation error:", error);
+      toast.error(error.message || "Failed to create property");
+    }
   };
 
   // Sample data for dropdowns

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
+import { api } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import {
   FileText,
   Map,
@@ -62,19 +64,38 @@ const serviceOptions: ServiceOption[] = [
 
 const ServiceSelection = () => {
   const navigate = useNavigate();
+  const { isLoading: authLoading } = useAuth();
   const [selectedService, setSelectedService] = useState<string | null>(null);
 
   const handleBack = () => {
     navigate("/property-review");
   };
 
-  const handleSelectService = (service: ServiceOption) => {
+  const handleSelectService = async (service: ServiceOption) => {
     setSelectedService(service.id);
+
     // Store in localStorage for next screen
     localStorage.setItem("selectedMainService", JSON.stringify({
       id: service.id,
       label: service.label,
     }));
+
+    // Save to backend if property exists
+    const propertyId = localStorage.getItem("currentPropertyId");
+    if (propertyId) {
+      try {
+        const result = await api.post("/v1/client/services", {
+          property_id: propertyId,
+          service_group: service.label,
+        });
+        if (result?.data?.id) {
+          localStorage.setItem("currentServiceRequestId", result.data.id);
+        }
+      } catch (error) {
+        console.error("Service save error:", error);
+      }
+    }
+
     // Navigate based on service type
     setTimeout(() => {
       if (service.id === "e-katha") {

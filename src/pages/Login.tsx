@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -82,32 +82,18 @@ const Login = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Call ensure_profile RPC to create/update profile with safe defaults
-        const { error: rpcError } = await supabase.rpc('ensure_profile');
-        
-        if (rpcError) {
-          console.error('Profile ensure error:', rpcError);
+        // Ensure profile row exists in users table
+        try {
+          await supabase.rpc('ensure_profile');
+        } catch (e) {
+          console.error('Profile ensure error:', e);
         }
-
-        // Fetch the user's profile
-        const { data: profile, error: profileError } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.user.id)
-          .maybeSingle();
-
-        if (profileError) {
-          console.error('Profile fetch error:', profileError);
-        }
-
-        console.log('User profile:', profile);
 
         toast({
           title: "Success",
           description: "Welcome to e-DigiVault!",
         });
 
-        // Navigate to Client Dashboard
         navigate("/dashboard");
       }
     } catch (error: any) {

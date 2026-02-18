@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { Shield, ChevronLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -95,24 +95,15 @@ const Register = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Check if profile exists
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("id", data.user.id)
-          .maybeSingle();
-
-        // If no profile exists, create one with the selected registration type
-        if (!profile) {
-          const { error: insertError } = await supabase.from("profiles").insert({
-            id: data.user.id,
-            role: "client",
-            user_type: registrationType,
-            phone: formattedPhone,
-          });
-
-          if (insertError) throw insertError;
+        // Ensure profile row exists via RPC
+        try {
+          await supabase.rpc('ensure_profile');
+        } catch (e) {
+          console.error('Profile ensure error:', e);
         }
+
+        // Store registration type for next screens
+        localStorage.setItem("registrationType", registrationType);
 
         toast({
           title: "Welcome!",

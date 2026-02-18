@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ChevronLeft, Upload, Scan, Calendar } from "lucide-react";
+import { api } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,16 +165,59 @@ const OrganizationRegistration = () => {
     navigate(-1);
   };
 
-  const handleNext = () => {
-    // Store in local storage
-    const profileData = {
-      ...profile,
-      profilePhoto: null,
-      dateOfBirth: profile.dateOfBirth?.toISOString(),
-      dateOfEstablishment: profile.dateOfEstablishment?.toISOString(),
-    };
-    localStorage.setItem("organizationProfile", JSON.stringify(profileData));
-    navigate("/projects/create");
+  const { toast } = useToast();
+
+  const handleNext = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/login"); return; }
+
+      const phone = session.user.phone?.replace("+91", "") || profile.contactNo;
+
+      // Upload profile photo if selected
+      let profilePhotoUrl = null;
+      if (profile.profilePhoto) {
+        const fileExt = profile.profilePhoto.name.split('.').pop();
+        const filePath = `${session.user.id}/avatar.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, profile.profilePhoto, { upsert: true });
+        if (!uploadError && uploadData) {
+          const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+          profilePhotoUrl = urlData.publicUrl;
+        }
+      }
+
+      await api.post("/v1/auth/register/organization", {
+        full_name: profile.fullName || "",
+        phone: phone,
+        email: profile.businessMailId || null,
+        designation: profile.designation || null,
+        contact_no: profile.contactNo || null,
+        org_name: profile.organisationName || "",
+        org_email: profile.organisationMailId || null,
+        registered_office_address: profile.registeredOfficeAddress || null,
+        date_of_establishment: profile.dateOfEstablishment ? profile.dateOfEstablishment.toISOString().split("T")[0] : null,
+        gstin_no: profile.organisationGstin || null,
+        org_pan_no: profile.organisationPan || null,
+        business_email: profile.businessMailId || null,
+        profile_photo_url: profilePhotoUrl,
+      });
+
+      // Keep localStorage backup
+      const profileData = {
+        ...profile, profilePhoto: null,
+        dateOfBirth: profile.dateOfBirth?.toISOString(),
+        dateOfEstablishment: profile.dateOfEstablishment?.toISOString(),
+      };
+      localStorage.setItem("organizationProfile", JSON.stringify(profileData));
+
+      toast({ title: "Success", description: "Organisation registered!" });
+      navigate("/projects/create");
+    } catch (error: any) {
+      console.error("Org registration error:", error);
+      toast({ title: "Error", description: error.message || "Failed to register", variant: "destructive" });
+    }
   };
 
   // Sample data for dropdowns

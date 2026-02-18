@@ -1,181 +1,123 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from '@/lib/supabase'
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const API_URL = 'https://edigivault-api.onrender.com'
 
-async function getAuthHeaders() {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error("Not authenticated");
-  }
-  return {
-    Authorization: `Bearer ${session.access_token}`,
-    "Content-Type": "application/json",
-  };
+const getToken = async () => {
+  const { data } = await supabase.auth.getSession()
+  return data.session?.access_token || null
 }
 
-async function callFunction<T>(
-  functionName: string,
-  options: {
-    method?: "GET" | "POST" | "DELETE";
-    body?: Record<string, unknown>;
-    queryParams?: Record<string, string>;
-  } = {}
-): Promise<T> {
-  const { method = "POST", body, queryParams } = options;
-  const headers = await getAuthHeaders();
+export const api = {
+  async get(path: string) {
+    const token = await getToken()
+    const res = await fetch(`${API_URL}${path}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    })
+    if (res.status === 401) {
+      window.location.href = '/login'
+      return null
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || `API Error: ${res.status}`)
+    }
+    return res.json()
+  },
 
-  let url = `${SUPABASE_URL}/functions/v1/${functionName}`;
-  if (queryParams) {
-    const params = new URLSearchParams(queryParams);
-    url += `?${params.toString()}`;
-  }
+  async post(path: string, body?: any) {
+    const token = await getToken()
+    const res = await fetch(`${API_URL}${path}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    if (res.status === 401) {
+      window.location.href = '/login'
+      return null
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || `API Error: ${res.status}`)
+    }
+    return res.json()
+  },
 
-  const response = await fetch(url, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Request failed");
-  }
-
-  return data;
+  async patch(path: string, body?: any) {
+    const token = await getToken()
+    const res = await fetch(`${API_URL}${path}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      throw new Error(err.detail || `API Error: ${res.status}`)
+    }
+    return res.json()
+  },
 }
 
-// User Profile
-export async function ensureUserProfile() {
-  return callFunction<{ profile: unknown; created: boolean }>("ensure-user-profile");
-}
-
-// Projects
-export async function createProject(title: string, description?: string) {
-  return callFunction<{ project: unknown }>("create-project", {
-    body: { title, description },
-  });
-}
-
-export async function listProjects() {
-  return callFunction<{ projects: unknown[] }>("list-projects", { method: "GET" });
-}
-
-// Properties
-export async function createProperty(
-  projectId: string,
-  propertyData: {
-    propertyType: string;
-    propertyName: string;
-    addressShort?: string;
-    sizeUnit?: string;
-    sizeValue?: number;
-    addressFields?: Record<string, unknown>;
-    latitude?: number;
-    longitude?: number;
-  }
-) {
-  return callFunction<{ property: unknown }>("create-property", {
-    body: { projectId, propertyData },
-  });
-}
-
-export async function listProperties(projectId: string) {
-  return callFunction<{ properties: unknown[] }>("list-properties", {
-    method: "GET",
-    queryParams: { projectId },
-  });
-}
-
-// Service Requests
-export async function createOrUpdateServiceRequest(
-  projectId: string,
-  propertyId: string,
-  mainService: string,
-  subService?: string
-) {
-  return callFunction<{ serviceRequest: unknown; created: boolean }>("service-request", {
-    body: { projectId, propertyId, mainService, subService },
-  });
-}
-
-// Documents
-export async function uploadDocument(
-  serviceRequestId: string,
-  docGroup: string,
-  docName: string,
-  file: File
-) {
-  const { data: { session } } = await supabase.auth.getSession();
-  if (!session?.access_token) {
-    throw new Error("Not authenticated");
-  }
-
+// Document helpers for ReviewDocuments page
+export async function uploadDocument(serviceRequestId: string, docGroup: string, docName: string, file: File) {
+  const token = await getToken();
   const formData = new FormData();
-  formData.append("file", file);
-  formData.append("serviceRequestId", serviceRequestId);
-  formData.append("docGroup", docGroup);
-  formData.append("docName", docName);
-
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/upload-document`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${session.access_token}`,
-    },
+  formData.append('file', file);
+  formData.append('doc_group', docGroup);
+  formData.append('doc_name', docName);
+  const res = await fetch(`${API_URL}/v1/client/services/${serviceRequestId}/documents`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}` },
     body: formData,
   });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || "Upload failed");
-  }
-
-  return data as { document: unknown };
+  if (!res.ok) throw new Error('Upload failed');
+  return res.json();
 }
 
-export async function toggleNotAvailable(
-  serviceRequestId: string,
-  docName: string,
-  notAvailable: boolean
-) {
-  return callFunction<{ document: unknown }>("toggle-not-available", {
-    body: { serviceRequestId, docName, notAvailable },
+export async function toggleNotAvailable(serviceRequestId: string, docName: string, notAvailable: boolean) {
+  const token = await getToken();
+  const res = await fetch(`${API_URL}/v1/client/services/${serviceRequestId}/documents/toggle`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ doc_name: docName, not_available: notAvailable }),
   });
+  if (!res.ok) throw new Error('Toggle failed');
+  return res.json();
 }
 
-export async function deleteDocument(documentId: string) {
-  return callFunction<{ success: boolean }>("delete-document", {
-    body: { documentId },
+export async function submitServiceRequest(serviceRequestId: string, requiredDocNames: string[]) {
+  const token = await getToken();
+  const res = await fetch(`${API_URL}/v1/client/services/${serviceRequestId}/submit`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ required_doc_names: requiredDocNames }),
   });
+  if (!res.ok) throw new Error('Submit failed');
+  return res.json();
 }
 
-// Service Request Status
-export async function saveDraft(serviceRequestId: string) {
-  return callFunction<{ serviceRequest: unknown }>("save-draft", {
-    body: { serviceRequestId },
-  });
+// Legacy helpers — kept for backward compat with pages not yet wired
+export function getStoredUser() {
+  const raw = localStorage.getItem("auth_user")
+  return raw ? JSON.parse(raw) : null
 }
 
-export async function submitServiceRequest(
-  serviceRequestId: string,
-  requiredDocNames?: string[],
-  skipValidation = false
-) {
-  return callFunction<{ serviceRequest: unknown; success: boolean }>(
-    "submit-service-request",
-    {
-      body: { serviceRequestId, requiredDocNames, skipValidation },
-    }
-  );
+export function setStoredUser(user: { id: string; phone: string }) {
+  localStorage.setItem("auth_user", JSON.stringify(user))
 }
 
-// Activities
-export async function listActivities() {
-  return callFunction<{ activities: unknown[] }>("list-activities", { method: "GET" });
+export function clearStoredUser() {
+  localStorage.removeItem("auth_user")
 }
 
-// Transactions
-export async function listTransactions() {
-  return callFunction<{ transactions: unknown[] }>("list-transactions", { method: "GET" });
+export function isAuthenticated() {
+  return !!getStoredUser()
 }
