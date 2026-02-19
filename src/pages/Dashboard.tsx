@@ -54,14 +54,26 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return; // No session, skip API calls
+
+        const token = session.access_token;
+        const headers = {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        };
+        const API_URL = 'https://edigivault-api.onrender.com';
+
         const [dashRes, projRes] = await Promise.all([
-          api.get("/v1/client/dashboard").catch(() => null),
-          api.get("/v1/client/projects").catch(() => null),
+          fetch(`${API_URL}/v1/client/dashboard`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
+          fetch(`${API_URL}/v1/client/projects`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
         ]);
         if (dashRes?.data) setApiData(dashRes.data);
-        if (projRes?.data) setApiProjectCount(projRes.data.length);
+        if (projRes?.data) setApiProjectCount(Array.isArray(projRes.data) ? projRes.data.length : 0);
       } catch (e) {
         console.error("Dashboard fetch error:", e);
+      } finally {
+        setIsLoading(false);
       }
     };
     fetchData();
