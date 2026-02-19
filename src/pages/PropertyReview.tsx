@@ -38,7 +38,7 @@ const PropertyReview = () => {
     if (propertyStored) {
       setCurrentProperty(JSON.parse(propertyStored));
     }
-  }, [getPropertiesByProject]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBack = () => {
     navigate("/create-property");
