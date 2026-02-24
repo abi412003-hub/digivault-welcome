@@ -335,9 +335,12 @@ const OrganizationRegistration = () => {
                     <PopoverContent className="w-auto p-0" align="start">
                       <CalendarComponent
                         mode="single"
+                        captionLayout="dropdown-buttons"
                         selected={profile.dateOfBirth}
                         onSelect={(date) => updateProfile("dateOfBirth", date)}
                         disabled={(date) => date > new Date()}
+                        fromYear={1940}
+                        toYear={new Date().getFullYear()}
                         initialFocus
                         className="pointer-events-auto"
                       />
@@ -475,9 +478,12 @@ const OrganizationRegistration = () => {
                   <PopoverContent className="w-auto p-0" align="start">
                     <CalendarComponent
                       mode="single"
+                      captionLayout="dropdown-buttons"
                       selected={profile.dateOfEstablishment}
                       onSelect={(date) => updateProfile("dateOfEstablishment", date)}
                       disabled={(date) => date > new Date()}
+                      fromYear={1940}
+                      toYear={new Date().getFullYear()}
                       initialFocus
                       className="pointer-events-auto"
                     />
