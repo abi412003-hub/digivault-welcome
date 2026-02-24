@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, ChevronLeft } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import onboardingUpload from "@/assets/onboarding-upload.png";
 import onboardingSecure from "@/assets/onboarding-secure.png";
 import onboardingTrack from "@/assets/onboarding-track.png";
@@ -9,17 +10,45 @@ type OnboardingScreen = "splash" | "screen1" | "screen2" | "screen3";
 
 const Onboarding = () => {
   const [currentScreen, setCurrentScreen] = useState<OnboardingScreen>("splash");
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const navigate = useNavigate();
+
+  // Check if user is already logged in — skip onboarding
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // User is already authenticated, check if registered
+        const { data: user } = await supabase
+          .from('users')
+          .select('full_name')
+          .eq('id', session.user.id)
+          .single();
+
+        if (user?.full_name && user.full_name !== 'New User') {
+          // Registered user — go straight to dashboard
+          navigate('/dashboard', { replace: true });
+          return;
+        } else {
+          // Logged in but not registered — go to registration
+          navigate('/registration-type', { replace: true });
+          return;
+        }
+      }
+      setCheckingAuth(false);
+    };
+    checkSession();
+  }, [navigate]);
 
   // Auto-advance from splash after 1.5 seconds
   useEffect(() => {
-    if (currentScreen === "splash") {
+    if (!checkingAuth && currentScreen === "splash") {
       const timer = setTimeout(() => {
         setCurrentScreen("screen1");
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [currentScreen]);
+  }, [currentScreen, checkingAuth]);
 
   const handleNext = () => {
     switch (currentScreen) {

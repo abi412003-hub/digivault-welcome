@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 import { Shield } from "lucide-react";
@@ -11,6 +11,15 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // If already logged in, go to dashboard
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) navigate('/dashboard', { replace: true });
+    };
+    check();
+  }, [navigate]);
 
   const formatPhoneNumber = (phoneNumber: string) => {
     // Remove all non-digit characters
