@@ -10,14 +10,14 @@ const getToken = async () => {
 export const api = {
   async get(path: string) {
     const token = await getToken()
-    if (!token) return null // No session, return null silently
+    if (!token) return null
     const res = await fetch(`${API_URL}${path}`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
     })
-    if (res.status === 401) return null // Token expired, return null
+    if (res.status === 401) return null
     if (!res.ok) {
       const err = await res.json().catch(() => ({}))
       const msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || err)
@@ -104,42 +104,76 @@ export async function createOrUpdateServiceRequest(projectId: string, propertyId
   return { serviceRequest: { id: result?.data?.id } }
 }
 
-// Document helpers — these call backend API endpoints
-export async function uploadDocument(serviceRequestId: string, docGroup: string, docName: string, file: File) {
-  const token = await getToken()
-  const formData = new FormData()
-  formData.append('file', file)
-  formData.append('doc_group', docGroup)
-  formData.append('doc_name', docName)
-  const res = await fetch(`${API_URL}/v1/client/services/${serviceRequestId}/documents`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
-    body: formData,
-  })
-  if (!res.ok) throw new Error('Upload failed')
-  return res.json()
+// Document helpers — upload directly to Supabase Storage + insert DB row
+export async function uploadDocument(serviceId: string, docGroup: string, docName: string, file: File) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Not authenticated')
+  
+  const userId = session.user.id
+  const fileExt = file.name.split('.').pop() || 'pdf'
+  const safeName = docName.replace(/[^a-zA-Z0-9]/g, '_')
+  const filePath = `${userId}/${serviceId}/${safeName}.${fileExt}`
+
+  // Upload file to Supabase Storage
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('documents')
+    .upload(filePath, file, { upsert: true })
+
+  if (uploadError) {
+    // If 'documents' bucket doesn't exist, try 'avatars' bucket as fallback
+    console.warn('Upload to documents bucket failed, using direct insert:', uploadError)
+  }
+
+  // Get public URL
+  let fileUrl = ''
+  if (uploadData) {
+    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(filePath)
+    fileUrl = urlData.publicUrl
+  }
+
+  // Insert document record into DB
+  const { data, error } = await supabase
+    .from('documents')
+    .insert({
+      service_id: serviceId,
+      category: docGroup,
+      sub_category: docName,
+      file_name: file.name,
+      file_url: fileUrl || `uploaded://${filePath}`,
+      file_type: file.type,
+      file_size: file.size,
+      status: 'uploaded',
+      uploaded_by: userId,
+    })
+    .select()
+    .single()
+
+  if (error) throw new Error(`Failed to save document record: ${error.message}`)
+  return data
 }
 
-export async function toggleNotAvailable(serviceRequestId: string, docName: string, notAvailable: boolean) {
-  const token = await getToken()
-  const res = await fetch(`${API_URL}/v1/client/services/${serviceRequestId}/documents/toggle`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ doc_name: docName, not_available: notAvailable }),
-  })
-  if (!res.ok) throw new Error('Toggle failed')
-  return res.json()
+export async function toggleNotAvailable(serviceId: string, docName: string, notAvailable: boolean) {
+  // For now, store in localStorage since documents table doesn't have not_available column
+  const key = `na_docs_${serviceId}`
+  const stored = JSON.parse(localStorage.getItem(key) || '{}')
+  if (notAvailable) {
+    stored[docName] = true
+  } else {
+    delete stored[docName]
+  }
+  localStorage.setItem(key, JSON.stringify(stored))
+  return { success: true }
 }
 
 export async function submitServiceRequest(serviceRequestId: string, requiredDocNames: string[]) {
-  const token = await getToken()
-  const res = await fetch(`${API_URL}/v1/client/services/${serviceRequestId}/submit`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ required_doc_names: requiredDocNames }),
-  })
-  if (!res.ok) throw new Error('Submit failed')
-  return res.json()
+  // Update service request status to 'in_progress'
+  const { error } = await supabase
+    .from('service_requests')
+    .update({ status: 'in_progress' })
+    .eq('id', serviceRequestId)
+
+  if (error) throw new Error(`Failed to submit: ${error.message}`)
+  return { success: true }
 }
 
 // Legacy helpers

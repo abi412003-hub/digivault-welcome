@@ -12,10 +12,9 @@ import { supabase } from "@/lib/supabase";
 
 interface DocumentRecord {
   id: string;
-  doc_group: string;
-  doc_name: string;
+  category: string;      // maps to doc_group
+  sub_category: string;  // maps to doc_name
   file_url: string | null;
-  not_available: boolean;
   status: string | null;
 }
 
@@ -128,27 +127,41 @@ const ReviewDocuments = () => {
     return REQUIRED_DOCUMENTS[serviceRequest.sub_service] || REQUIRED_DOCUMENTS.default;
   };
 
+  // Get not-available docs from localStorage
+  const getNaDocs = (): Record<string, boolean> => {
+    const key = `na_docs_${resolvedServiceRequestId}`;
+    return JSON.parse(localStorage.getItem(key) || '{}');
+  };
+
   const getCommonDocs = () => {
-    return documents.filter((doc) => doc.doc_group === "common" && doc.file_url);
+    return documents.filter((doc) => doc.category === "common" && doc.file_url);
   };
 
   const getRequiredDocsWithStatus = () => {
     const requiredDocNames = getRequiredDocs();
+    const naDocs = getNaDocs();
     return requiredDocNames.map((docName) => {
       const doc = documents.find(
-        (d) => d.doc_group === "required" && d.doc_name === docName
+        (d) => d.category === "required" && d.sub_category === docName
       );
       return {
         docName,
         uploaded: !!doc?.file_url,
-        notAvailable: !!doc?.not_available,
+        notAvailable: !!naDocs[docName],
         documentId: doc?.id,
       };
     });
   };
 
   const getNotAvailableDocs = () => {
-    return documents.filter((doc) => doc.not_available);
+    const naDocs = getNaDocs();
+    return Object.keys(naDocs).filter(k => naDocs[k]).map(docName => ({
+      id: docName,
+      category: 'required',
+      sub_category: docName,
+      file_url: null,
+      status: null,
+    }));
   };
 
   const handleTileClick = (docGroup: string, docName: string) => {
@@ -307,12 +320,12 @@ const ReviewDocuments = () => {
                 commonDocs.map((doc) => (
                   <button
                     key={doc.id}
-                    onClick={() => handleTileClick("common", doc.doc_name)}
+                    onClick={() => handleTileClick("common", doc.sub_category)}
                     className="relative aspect-square rounded-xl bg-primary flex flex-col items-center justify-center p-2 text-primary-foreground hover:bg-primary/90 transition-colors"
                   >
                     <FileText className="w-8 h-8 mb-1" />
                     <span className="text-xs font-medium text-center truncate w-full">
-                      {doc.doc_name}
+                      {doc.sub_category}
                     </span>
                     <div className="absolute top-2 right-2">
                       <FileText className="w-3 h-3" />
@@ -410,7 +423,7 @@ const ReviewDocuments = () => {
                 >
                   <FileText className="w-8 h-8 mb-1" />
                   <span className="text-xs font-medium text-center truncate w-full">
-                    {doc.doc_name}
+                    {doc.sub_category}
                   </span>
                 </div>
               ))}
