@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
+import { toast } from "@/hooks/use-toast";
 
 const eKathaSubServices = [
   "New E-Katha Registration",
@@ -23,22 +25,39 @@ const eKathaSubServices = [
 const EKathaServices = () => {
   const navigate = useNavigate();
   const [selectedService, setSelectedService] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const handleBack = () => {
     navigate("/service-selection");
   };
 
-  const handleSelectService = (service: string) => {
+  const handleSelectService = async (service: string) => {
     setSelectedService(service);
+    setSaving(true);
     
-    // Save selections to localStorage only - no database calls
+    // Save selections to localStorage
     localStorage.setItem("selectedMainService", JSON.stringify({
       id: "e-katha",
       label: "E-katha",
     }));
     localStorage.setItem("selectedSubService", service);
     
-    // Navigate directly to upload common documents - bypass everything
+    // Update the service_request in DB with sub_service
+    const serviceRequestId = localStorage.getItem("currentServiceRequestId");
+    if (serviceRequestId) {
+      try {
+        const { error } = await supabase
+          .from("services")
+          .update({ service_type: service })
+          .eq("id", serviceRequestId);
+        
+        if (error) console.warn("Could not update sub_service:", error);
+      } catch (e) {
+        console.warn("Sub-service update error:", e);
+      }
+    }
+    
+    setSaving(false);
     navigate("/upload-common-documents");
   };
 
@@ -65,7 +84,6 @@ const EKathaServices = () => {
 
       {/* Content */}
       <div className="flex-1 px-4 pb-6 overflow-y-auto">
-        {/* Grid of Service Buttons */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {eKathaSubServices.map((service) => {
             const isSelected = selectedService === service;
@@ -74,11 +92,13 @@ const EKathaServices = () => {
               <button
                 key={service}
                 onClick={() => handleSelectService(service)}
+                disabled={saving}
                 className={cn(
                   "flex items-center justify-center p-4 rounded-xl transition-all duration-200 min-h-[100px]",
                   isSelected
                     ? "bg-primary/80 text-primary-foreground"
-                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90",
+                  saving && "opacity-50"
                 )}
               >
                 <span className="text-xs leading-tight text-center font-medium">

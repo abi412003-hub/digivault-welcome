@@ -166,9 +166,9 @@ export async function toggleNotAvailable(serviceId: string, docName: string, not
 }
 
 export async function submitServiceRequest(serviceRequestId: string, requiredDocNames: string[]) {
-  // Update service request status to 'in_progress'
+  // Update service status to 'in_progress' on base table
   const { error } = await supabase
-    .from('service_requests')
+    .from('services')
     .update({ status: 'in_progress' })
     .eq('id', serviceRequestId)
 

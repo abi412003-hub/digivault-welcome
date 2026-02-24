@@ -84,15 +84,22 @@ const ReviewDocuments = () => {
       }
 
       try {
-        // Fetch service request
+        // Fetch service request (from base 'services' table)
         const { data: srData, error: srError } = await supabase
-          .from("service_requests")
+          .from("services")
           .select("*")
           .eq("id", resolvedServiceRequestId)
           .single();
 
         if (srError) throw srError;
-        setServiceRequest(srData as unknown as ServiceRequest);
+        // Map services columns to ServiceRequest interface
+        const mapped = {
+          id: srData.id,
+          main_service: srData.service_group || '',
+          sub_service: srData.service_type || srData.sub_service || null,
+          status: srData.status,
+        };
+        setServiceRequest(mapped as ServiceRequest);
 
         // Fetch documents for this service request
         const { data: docsData, error: docsError } = await supabase
@@ -186,9 +193,9 @@ const ReviewDocuments = () => {
       setDocuments((docsData || []) as unknown as DocumentRecord[]);
       setValidationErrors((prev) => prev.filter((err) => err !== uploadTarget.docName));
       toast({ title: "Uploaded", description: `${uploadTarget.docName} uploaded successfully` });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Upload error:", error);
-      toast({ title: "Error", description: "Failed to upload document", variant: "destructive" });
+      toast({ title: "Upload Error", description: error?.message || "Failed to upload document", variant: "destructive" });
     } finally {
       setUploading(false);
       setUploadTarget(null);
