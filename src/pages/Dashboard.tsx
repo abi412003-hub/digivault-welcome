@@ -19,8 +19,6 @@ import {
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import BottomNav from "@/components/BottomNav";
-import { useActivities } from "@/hooks/useActivities";
-import { useProjects } from "@/hooks/useProjects";
 
 const actionButtons = [
   { label: "Proposals", icon: FileText, path: "/proposals" },
@@ -44,69 +42,54 @@ const getStatusBadgeStyles = (status: string) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const { activities: localActivities, getStatusCounts: getLocalStatusCounts } = useActivities();
-  const { projectCount: localProjectCount } = useProjects();
-
-  const [apiData, setApiData] = useState<any>(null);
-  const [apiProjectCount, setApiProjectCount] = useState<number | null>(null);
-
-  // Fetch from backend API
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return; // No session, skip API calls
-
-        const token = session.access_token;
-        const headers = {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        };
-        const API_URL = 'https://edigivault-api.onrender.com';
-
-        const [dashRes, projRes] = await Promise.all([
-          fetch(`${API_URL}/v1/client/dashboard`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-          fetch(`${API_URL}/v1/client/projects`, { headers }).then(r => r.ok ? r.json() : null).catch(() => null),
-        ]);
-        if (dashRes?.data) setApiData(dashRes.data);
-        if (projRes?.data) setApiProjectCount(Array.isArray(projRes.data) ? projRes.data.length : 0);
-      } catch (e) {
-        console.error("Dashboard fetch error:", e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchData();
-  }, []);
-
-  // Use API data when available, localStorage as fallback
-  const localCounts = getLocalStatusCounts();
-  const statusCounts = apiData
-    ? { completed: apiData.completed_services || 0, ongoing: apiData.ongoing_services || 0, pending: apiData.pending_services || 0 }
-    : localCounts;
-  const projectCount = apiProjectCount ?? localProjectCount;
-  const activities = apiData?.recent_activity?.map((a: any) => ({
-    id: a.id, title: a.title, date: new Date(a.created_at).toLocaleDateString(), status: "Ongoing" as const,
-  })) || localActivities;
-
-  const statusCards = [
-    { label: "Completed", count: statusCounts.completed, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
-    { label: "Ongoing", count: statusCounts.ongoing, icon: Hourglass, color: "text-blue-600", bg: "bg-blue-100" },
-    { label: "Pending", count: statusCounts.pending, icon: Clock, color: "text-orange-500", bg: "bg-orange-100" },
-  ];
+  const [statusCounts, setStatusCounts] = useState({ completed: 0, ongoing: 0, pending: 0 });
+  const [projectCount, setProjectCount] = useState(0);
+  const [activities, setActivities] = useState<any[]>([]);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const init = async () => {
+      // Check auth
       const { data: { session } } = await supabase.auth.getSession();
-      
       if (!session) {
         navigate("/");
         return;
       }
+
       setIsLoading(false);
+
+      // Fetch data from API (non-blocking)
+      try {
+        const [dashRes, projRes] = await Promise.all([
+          api.get("/v1/client/dashboard").catch(() => null),
+          api.get("/v1/client/projects").catch(() => null),
+        ]);
+        
+        if (dashRes?.data) {
+          setStatusCounts({
+            completed: dashRes.data.completed_services || 0,
+            ongoing: dashRes.data.ongoing_services || 0,
+            pending: dashRes.data.pending_services || 0,
+          });
+          if (dashRes.data.recent_activity) {
+            setActivities(dashRes.data.recent_activity.map((a: any) => ({
+              id: a.id,
+              title: a.title,
+              date: new Date(a.created_at).toLocaleDateString(),
+              status: "Ongoing",
+            })));
+          }
+        }
+        
+        if (projRes?.data && Array.isArray(projRes.data)) {
+          setProjectCount(projRes.data.length);
+        }
+      } catch (e) {
+        console.log("API fetch skipped:", e);
+        // Dashboard still shows with zeros — that's fine
+      }
     };
 
-    checkAuth();
+    init();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "SIGNED_OUT" || !session) {
@@ -116,6 +99,12 @@ const Dashboard = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  const statusCards = [
+    { label: "Completed", count: statusCounts.completed, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
+    { label: "Ongoing", count: statusCounts.ongoing, icon: Hourglass, color: "text-blue-600", bg: "bg-blue-100" },
+    { label: "Pending", count: statusCounts.pending, icon: Clock, color: "text-orange-500", bg: "bg-orange-100" },
+  ];
 
   if (isLoading) {
     return (
@@ -210,13 +199,11 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="divide-y divide-border">
-                  {/* Table Header */}
                   <div className="p-3 bg-muted/50 grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground">
                     <span>Document Title</span>
                     <span className="text-center">Date</span>
                     <span className="text-right">Status</span>
                   </div>
-                  {/* Table Rows */}
                   {activities.map((activity) => (
                     <div key={activity.id} className="p-3 grid grid-cols-3 gap-2 items-center">
                       <p className="font-medium text-foreground text-sm truncate">{activity.title}</p>

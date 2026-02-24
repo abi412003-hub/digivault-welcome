@@ -99,14 +99,17 @@ const ReviewDocuments = () => {
         const { data: docsData, error: docsError } = await supabase
           .from("documents")
           .select("*")
-          .eq("service_request_id", resolvedServiceRequestId);
+          .eq("service_id", resolvedServiceRequestId);
 
-        if (docsError) throw docsError;
-        setDocuments((docsData || []) as unknown as DocumentRecord[]);
+        if (docsError) {
+          console.warn("Documents fetch error (may not exist yet):", docsError);
+          setDocuments([]);
+        } else {
+          setDocuments((docsData || []) as unknown as DocumentRecord[]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast({ title: "Error", description: "Failed to load data", variant: "destructive" });
-        navigate("/dashboard");
+        toast({ title: "Note", description: "Some data could not be loaded", variant: "default" });
       } finally {
         setLoading(false);
       }
@@ -165,7 +168,7 @@ const ReviewDocuments = () => {
       const { data: docsData } = await supabase
         .from("documents")
         .select("*")
-        .eq("service_request_id", resolvedServiceRequestId);
+        .eq("service_id", resolvedServiceRequestId);
       
       setDocuments((docsData || []) as unknown as DocumentRecord[]);
       setValidationErrors((prev) => prev.filter((err) => err !== uploadTarget.docName));
@@ -190,7 +193,7 @@ const ReviewDocuments = () => {
       const { data: docsData } = await supabase
         .from("documents")
         .select("*")
-        .eq("service_request_id", resolvedServiceRequestId);
+        .eq("service_id", resolvedServiceRequestId);
       
       setDocuments((docsData || []) as unknown as DocumentRecord[]);
       setValidationErrors((prev) => prev.filter((err) => err !== docName));
