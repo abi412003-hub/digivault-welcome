@@ -58,39 +58,85 @@ const IndividualRegistration = () => {
   const location = useLocation();
   const phoneFromOtp = location.state?.phone || "";
 
-  const [profile, setProfile] = useState<IndividualProfile>({
-    prefix: "",
-    fullName: "",
-    relationPrefix: "",
-    relationName: "",
-    dateOfBirth: undefined,
-    age: 0,
-    profilePhoto: null,
-    email: "",
-    phone: phoneFromOtp,
-    whatsappNo: "",
-    aadhaarNo: "",
-    panNo: "",
-    doorNo: "",
-    buildingName: "",
-    crossRoad: "",
-    mainRoad: "",
-    landmark: "",
-    areaName: "",
-    state: "",
-    zone: "",
-    district: "",
-    taluk: "",
-    areaType: "urban",
-    municipalType: "",
-    pattanaPanchayathi: "",
-    wardNo: "",
-    postOffice: "",
-    pincode: "",
-    referralCode: "",
+  const [profile, setProfile] = useState<IndividualProfile>(() => {
+    // Restore saved form data from localStorage
+    try {
+      const saved = localStorage.getItem("individualFormDraft");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          dateOfBirth: parsed.dateOfBirth ? new Date(parsed.dateOfBirth) : undefined,
+          profilePhoto: null, // File can't be serialized
+          phone: phoneFromOtp || parsed.phone || "",
+        };
+      }
+    } catch (e) {
+      console.error("Error restoring form draft:", e);
+    }
+    return {
+      prefix: "",
+      fullName: "",
+      relationPrefix: "",
+      relationName: "",
+      dateOfBirth: undefined,
+      age: 0,
+      profilePhoto: null,
+      email: "",
+      phone: phoneFromOtp,
+      whatsappNo: "",
+      aadhaarNo: "",
+      panNo: "",
+      doorNo: "",
+      buildingName: "",
+      crossRoad: "",
+      mainRoad: "",
+      landmark: "",
+      areaName: "",
+      state: "",
+      zone: "",
+      district: "",
+      taluk: "",
+      areaType: "urban",
+      municipalType: "",
+      pattanaPanchayathi: "",
+      wardNo: "",
+      postOffice: "",
+      pincode: "",
+      referralCode: "",
+    };
   });
 
-  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("individualFormDraftPhoto") || null;
+    } catch { return null; }
+  });
+
+  // Auto-save form data to localStorage on every change
+  useEffect(() => {
+    try {
+      const toSave = {
+        ...profile,
+        profilePhoto: null,
+        dateOfBirth: profile.dateOfBirth?.toISOString() || null,
+      };
+      localStorage.setItem("individualFormDraft", JSON.stringify(toSave));
+    } catch (e) {
+      console.error("Error saving form draft:", e);
+    }
+  }, [profile]);
+
+  // Save photo preview separately
+  useEffect(() => {
+    try {
+      if (profilePhotoPreview) {
+        localStorage.setItem("individualFormDraftPhoto", profilePhotoPreview);
+      }
+    } catch (e) {
+      console.error("Error saving photo preview:", e);
+    }
+  }, [profilePhotoPreview]);
 
   // Calculate age from DOB
   useEffect(() => {
@@ -213,6 +259,10 @@ const IndividualRegistration = () => {
         dateOfBirth: profile.dateOfBirth?.toISOString(),
       };
       localStorage.setItem("individualProfile", JSON.stringify(profileData));
+
+      // Clear form draft after successful save
+      localStorage.removeItem("individualFormDraft");
+      localStorage.removeItem("individualFormDraftPhoto");
 
       toast({ title: "Success", description: "Registration saved!" });
       navigate("/projects/create");

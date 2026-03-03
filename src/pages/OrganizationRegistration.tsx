@@ -66,43 +66,91 @@ const OrganizationRegistration = () => {
   const location = useLocation();
   const phoneFromOtp = location.state?.phone || "";
 
-  const [profile, setProfile] = useState<OrganizationProfile>({
-    prefix: "",
-    fullName: "",
-    relationPrefix: "",
-    relationName: "",
-    dateOfBirth: undefined,
-    age: 0,
-    profilePhoto: null,
-    designation: "",
-    contactNo: phoneFromOtp,
-    businessMailId: "",
-    organisationName: "",
-    organisationMailId: "",
-    registeredOfficeAddress: "",
-    dateOfEstablishment: undefined,
-    organisationGstin: "",
-    organisationPan: "",
-    doorNo: "",
-    buildingName: "",
-    crossRoad: "",
-    mainRoad: "",
-    landmark: "",
-    areaName: "",
-    state: "",
-    zone: "",
-    district: "",
-    taluk: "",
-    areaType: "urban",
-    municipalType: "",
-    pattanaPanchayathi: "",
-    wardNo: "",
-    postOffice: "",
-    pincode: "",
-    referralCode: "",
+  const [profile, setProfile] = useState<OrganizationProfile>(() => {
+    // Restore saved form data from localStorage
+    try {
+      const saved = localStorage.getItem("orgFormDraft");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...parsed,
+          dateOfBirth: parsed.dateOfBirth ? new Date(parsed.dateOfBirth) : undefined,
+          dateOfEstablishment: parsed.dateOfEstablishment ? new Date(parsed.dateOfEstablishment) : undefined,
+          profilePhoto: null,
+          contactNo: phoneFromOtp || parsed.contactNo || "",
+        };
+      }
+    } catch (e) {
+      console.error("Error restoring form draft:", e);
+    }
+    return {
+      prefix: "",
+      fullName: "",
+      relationPrefix: "",
+      relationName: "",
+      dateOfBirth: undefined,
+      age: 0,
+      profilePhoto: null,
+      designation: "",
+      contactNo: phoneFromOtp,
+      businessMailId: "",
+      organisationName: "",
+      organisationMailId: "",
+      registeredOfficeAddress: "",
+      dateOfEstablishment: undefined,
+      organisationGstin: "",
+      organisationPan: "",
+      doorNo: "",
+      buildingName: "",
+      crossRoad: "",
+      mainRoad: "",
+      landmark: "",
+      areaName: "",
+      state: "",
+      zone: "",
+      district: "",
+      taluk: "",
+      areaType: "urban",
+      municipalType: "",
+      pattanaPanchayathi: "",
+      wardNo: "",
+      postOffice: "",
+      pincode: "",
+      referralCode: "",
+    };
   });
 
-  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem("orgFormDraftPhoto") || null;
+    } catch { return null; }
+  });
+
+  // Auto-save form data to localStorage on every change
+  useEffect(() => {
+    try {
+      const toSave = {
+        ...profile,
+        profilePhoto: null,
+        dateOfBirth: profile.dateOfBirth?.toISOString() || null,
+        dateOfEstablishment: profile.dateOfEstablishment?.toISOString() || null,
+      };
+      localStorage.setItem("orgFormDraft", JSON.stringify(toSave));
+    } catch (e) {
+      console.error("Error saving form draft:", e);
+    }
+  }, [profile]);
+
+  // Save photo preview separately
+  useEffect(() => {
+    try {
+      if (profilePhotoPreview) {
+        localStorage.setItem("orgFormDraftPhoto", profilePhotoPreview);
+      }
+    } catch (e) {
+      console.error("Error saving photo preview:", e);
+    }
+  }, [profilePhotoPreview]);
 
   // Calculate age from DOB
   useEffect(() => {
@@ -206,6 +254,10 @@ const OrganizationRegistration = () => {
         dateOfEstablishment: profile.dateOfEstablishment?.toISOString(),
       };
       localStorage.setItem("organizationProfile", JSON.stringify(profileData));
+
+      // Clear form draft after successful save
+      localStorage.removeItem("orgFormDraft");
+      localStorage.removeItem("orgFormDraftPhoto");
 
       toast({ title: "Success", description: "Organisation registered!" });
       navigate("/projects/create");

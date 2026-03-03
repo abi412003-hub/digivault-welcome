@@ -74,31 +74,44 @@ const CreateProperty = () => {
     }
   }, []);
 
-  const [form, setForm] = useState<PropertyForm>({
-    propertyType: "",
-    propertyName: "",
-    address: "",
-    propertySizeUnit: "",
-    propertySize: "",
-    doorNo: "",
-    buildingName: "",
-    crossRoad: "",
-    mainRoad: "",
-    landmark: "",
-    areaName: "",
-    state: "",
-    zone: "",
-    district: "",
-    taluk: "",
-    areaType: "urban",
-    municipalType: "",
-    pattanaPanchayathi: "",
-    urbanWard: "",
-    postOffice: "",
-    pincode: "",
-    latitude: "",
-    longitude: "",
+  const [form, setForm] = useState<PropertyForm>(() => {
+    try {
+      const saved = localStorage.getItem("createPropertyDraft");
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return {
+      propertyType: "",
+      propertyName: "",
+      address: "",
+      propertySizeUnit: "",
+      propertySize: "",
+      doorNo: "",
+      buildingName: "",
+      crossRoad: "",
+      mainRoad: "",
+      landmark: "",
+      areaName: "",
+      state: "",
+      zone: "",
+      district: "",
+      taluk: "",
+      areaType: "urban",
+      municipalType: "",
+      pattanaPanchayathi: "",
+      urbanWard: "",
+      postOffice: "",
+      pincode: "",
+      latitude: "",
+      longitude: "",
+    };
   });
+
+  // Auto-save form data
+  useEffect(() => {
+    try {
+      localStorage.setItem("createPropertyDraft", JSON.stringify(form));
+    } catch (e) {}
+  }, [form]);
 
   // Generate formatted address review
   const formattedAddress = useMemo(() => {
@@ -207,6 +220,7 @@ const CreateProperty = () => {
       });
 
       localStorage.setItem("currentProperty", JSON.stringify(property));
+      localStorage.removeItem("createPropertyDraft");
       toast.success("Property created!");
       navigate("/property-review");
     } catch (error: any) {

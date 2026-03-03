@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,20 @@ const CreateProject = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { isLoading: authLoading } = useAuth();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [title, setTitle] = useState(() => {
+    try { return localStorage.getItem("createProjectDraft_title") || ""; } catch { return ""; }
+  });
+  const [description, setDescription] = useState(() => {
+    try { return localStorage.getItem("createProjectDraft_desc") || ""; } catch { return ""; }
+  });
+
+  // Auto-save form data
+  useEffect(() => {
+    try {
+      localStorage.setItem("createProjectDraft_title", title);
+      localStorage.setItem("createProjectDraft_desc", description);
+    } catch (e) {}
+  }, [title, description]);
 
   // Determine where to go back based on registration type
   const registrationType = location.state?.registrationType || 
@@ -51,6 +63,8 @@ const CreateProject = () => {
       localStorage.setItem("projects", JSON.stringify([...existingProjects, newProject]));
 
       toast({ title: "Success", description: "Project created!" });
+      localStorage.removeItem("createProjectDraft_title");
+      localStorage.removeItem("createProjectDraft_desc");
       navigate("/create-property", { state: { projectId } });
     } catch (error: any) {
       console.error("Project creation error:", error);
