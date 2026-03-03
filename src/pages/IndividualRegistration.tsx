@@ -16,14 +16,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+
 import { format, differenceInYears } from "date-fns";
 
 interface IndividualProfile {
@@ -324,35 +319,23 @@ const IndividualRegistration = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Date of Birth</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !profile.dateOfBirth && "text-muted-foreground"
-                        )}
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        {profile.dateOfBirth
-                          ? format(profile.dateOfBirth, "dd/MM/yyyy")
-                          : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        captionLayout="dropdown-buttons"
-                        selected={profile.dateOfBirth}
-                        onSelect={(date) => updateProfile("dateOfBirth", date)}
-                        disabled={(date) => date > new Date()}
-                        fromYear={1940}
-                        toYear={new Date().getFullYear()}
-                        initialFocus
-                        className="pointer-events-auto"
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    type="date"
+                    value={profile.dateOfBirth ? format(profile.dateOfBirth, "yyyy-MM-dd") : ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val) {
+                        const d = new Date(val + "T00:00:00");
+                        if (!isNaN(d.getTime()) && d <= new Date()) {
+                          updateProfile("dateOfBirth", d);
+                        }
+                      } else {
+                        updateProfile("dateOfBirth", undefined);
+                      }
+                    }}
+                    max={format(new Date(), "yyyy-MM-dd")}
+                    className="w-full"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Age</Label>
