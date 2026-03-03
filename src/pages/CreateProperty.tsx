@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ChevronLeft, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useWardData } from "@/hooks/useWardData";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -232,13 +233,33 @@ const CreateProperty = () => {
   // Sample data for dropdowns
   const propertyTypes = ["Apartment", "Villa", "Plot", "Commercial", "Agricultural Land"];
   const propertySizeUnits = ["Square Feet", "Acres", "Hectares", "Guntha"];
-  const states = ["Karnataka", "Tamil Nadu", "Kerala", "Andhra Pradesh", "Telangana"];
-  const zones = ["Bengaluru Division", "Mysuru Division", "Belagavi Division", "Kalaburagi Division"];
-  const districts = ["Bengaluru Urban", "Bengaluru Rural", "Mysuru", "Mangaluru"];
-  const taluks = ["Dod Ballapur", "Bangalore North", "Bangalore South", "Anekal", "Yelahanka"];
-  const municipalTypes = ["CMC", "TMC", "TP", "GBA", "MC"];
-  const pattanaPanchayathis = ["Devanahalli(TMC)", "Hoskote", "Nelamangala", "Doddaballapur"];
-  const urbanWards = ["URBAN NO.1", "URBAN NO.2", "URBAN NO.3", "URBAN NO.4", "URBAN NO.5"];
+  const states = ["Karnataka"];
+
+  // Cascading ward data from Excel
+  const wardData = useWardData({
+    zone: form.zone,
+    district: form.district,
+    taluk: form.taluk,
+    hobali: form.municipalType,
+    gp: form.pattanaPanchayathi,
+  });
+
+  // Clear downstream fields when parent changes
+  const updateFormCascade = (field: keyof PropertyForm, value: string) => {
+    const cascadeFields: Record<string, (keyof PropertyForm)[]> = {
+      zone: ["district", "taluk", "municipalType", "pattanaPanchayathi", "urbanWard"],
+      district: ["taluk", "municipalType", "pattanaPanchayathi", "urbanWard"],
+      taluk: ["municipalType", "pattanaPanchayathi", "urbanWard"],
+      municipalType: ["pattanaPanchayathi", "urbanWard"],
+      pattanaPanchayathi: ["urbanWard"],
+    };
+    setForm((prev) => {
+      const updated = { ...prev, [field]: value };
+      const toClear = cascadeFields[field] || [];
+      toClear.forEach((f) => { updated[f] = "" as any; });
+      return updated;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -435,13 +456,13 @@ const CreateProperty = () => {
                 <Label>Zone</Label>
                 <Select
                   value={form.zone}
-                  onValueChange={(v) => updateForm("zone", v)}
+                  onValueChange={(v) => updateFormCascade("zone", v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select zone" />
                   </SelectTrigger>
                   <SelectContent>
-                    {zones.map((zone) => (
+                    {wardData.zones.map((zone) => (
                       <SelectItem key={zone} value={zone}>
                         {zone}
                       </SelectItem>
@@ -455,13 +476,14 @@ const CreateProperty = () => {
                 <Label>District</Label>
                 <Select
                   value={form.district}
-                  onValueChange={(v) => updateForm("district", v)}
+                  onValueChange={(v) => updateFormCascade("district", v)}
+                  disabled={!form.zone}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select district" />
+                    <SelectValue placeholder={form.zone ? "Select district" : "Select zone first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {districts.map((district) => (
+                    {wardData.districts.map((district) => (
                       <SelectItem key={district} value={district}>
                         {district}
                       </SelectItem>
@@ -475,13 +497,14 @@ const CreateProperty = () => {
                 <Label>Taluk</Label>
                 <Select
                   value={form.taluk}
-                  onValueChange={(v) => updateForm("taluk", v)}
+                  onValueChange={(v) => updateFormCascade("taluk", v)}
+                  disabled={!form.district}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select taluk" />
+                    <SelectValue placeholder={form.district ? "Select taluk" : "Select district first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {taluks.map((taluk) => (
+                    {wardData.taluks.map((taluk) => (
                       <SelectItem key={taluk} value={taluk}>
                         {taluk}
                       </SelectItem>
@@ -513,18 +536,19 @@ const CreateProperty = () => {
                 </RadioGroup>
               </div>
 
-              {/* Municipal Type */}
+              {/* Hobali / Municipal Type */}
               <div className="space-y-2">
-                <Label>Select CMC/TMC/TP/GBA/MC</Label>
+                <Label>Hobali / CMC / TMC / TP / GBA</Label>
                 <Select
                   value={form.municipalType}
-                  onValueChange={(v) => updateForm("municipalType", v)}
+                  onValueChange={(v) => updateFormCascade("municipalType", v)}
+                  disabled={!form.taluk}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={form.taluk ? "Select hobali/municipal" : "Select taluk first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {municipalTypes.map((type) => (
+                    {wardData.hobalis.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
@@ -533,18 +557,19 @@ const CreateProperty = () => {
                 </Select>
               </div>
 
-              {/* Pattana Panchayathi */}
+              {/* Gram Panchayathi / Local Body */}
               <div className="space-y-2">
-                <Label>Select Pattana Panchayathi</Label>
+                <Label>Gram Panchayathi / Local Body</Label>
                 <Select
                   value={form.pattanaPanchayathi}
-                  onValueChange={(v) => updateForm("pattanaPanchayathi", v)}
+                  onValueChange={(v) => updateFormCascade("pattanaPanchayathi", v)}
+                  disabled={!form.municipalType}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select panchayathi" />
+                    <SelectValue placeholder={form.municipalType ? "Select GP / local body" : "Select hobali first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {pattanaPanchayathis.map((pp) => (
+                    {wardData.gps.map((pp) => (
                       <SelectItem key={pp} value={pp}>
                         {pp}
                       </SelectItem>
@@ -553,18 +578,19 @@ const CreateProperty = () => {
                 </Select>
               </div>
 
-              {/* Urban Ward */}
+              {/* Village / Ward */}
               <div className="space-y-2">
-                <Label>Urban</Label>
+                <Label>Village / Ward</Label>
                 <Select
                   value={form.urbanWard}
                   onValueChange={(v) => updateForm("urbanWard", v)}
+                  disabled={!form.pattanaPanchayathi}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select ward" />
+                    <SelectValue placeholder={form.pattanaPanchayathi ? "Select village/ward" : "Select GP first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {urbanWards.map((ward) => (
+                    {wardData.villages.map((ward) => (
                       <SelectItem key={ward} value={ward}>
                         {ward}
                       </SelectItem>

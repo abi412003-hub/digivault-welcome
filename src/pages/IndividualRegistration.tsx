@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useWardData } from "@/hooks/useWardData";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Select,
@@ -273,13 +274,32 @@ const IndividualRegistration = () => {
   };
 
   // Sample data for dropdowns
-  const states = ["Karnataka", "Tamil Nadu", "Kerala", "Andhra Pradesh", "Telangana"];
-  const zones = ["North", "South", "East", "West", "Central"];
-  const districts = ["Bangalore Urban", "Bangalore Rural", "Mysore", "Mangalore"];
-  const taluks = ["Bangalore North", "Bangalore South", "Anekal", "Yelahanka"];
-  const municipalTypes = ["CMC", "TMC", "TP", "GBA", "MC"];
-  const pattanaPanchayathis = ["PP1", "PP2", "PP3", "PP4"];
-  const wards = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
+  const states = ["Karnataka"];
+
+  // Cascading ward data
+  const wardData = useWardData({
+    zone: profile.zone,
+    district: profile.district,
+    taluk: profile.taluk,
+    hobali: profile.municipalType,
+    gp: profile.pattanaPanchayathi,
+  });
+
+  const updateProfileCascade = (field: keyof IndividualProfile, value: string) => {
+    const cascadeFields: Record<string, (keyof IndividualProfile)[]> = {
+      zone: ["district", "taluk", "municipalType", "pattanaPanchayathi", "wardNo"],
+      district: ["taluk", "municipalType", "pattanaPanchayathi", "wardNo"],
+      taluk: ["municipalType", "pattanaPanchayathi", "wardNo"],
+      municipalType: ["pattanaPanchayathi", "wardNo"],
+      pattanaPanchayathi: ["wardNo"],
+    };
+    setProfile((prev) => {
+      const updated = { ...prev, [field]: value };
+      const toClear = cascadeFields[field] || [];
+      toClear.forEach((f) => { (updated as any)[f] = ""; });
+      return updated;
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -583,13 +603,13 @@ const IndividualRegistration = () => {
                 <Label>Zone</Label>
                 <Select
                   value={profile.zone}
-                  onValueChange={(v) => updateProfile("zone", v)}
+                  onValueChange={(v) => updateProfileCascade("zone", v)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select zone" />
                   </SelectTrigger>
                   <SelectContent>
-                    {zones.map((zone) => (
+                    {wardData.zones.map((zone) => (
                       <SelectItem key={zone} value={zone}>
                         {zone}
                       </SelectItem>
@@ -603,13 +623,14 @@ const IndividualRegistration = () => {
                 <Label>District</Label>
                 <Select
                   value={profile.district}
-                  onValueChange={(v) => updateProfile("district", v)}
+                  onValueChange={(v) => updateProfileCascade("district", v)}
+                  disabled={!profile.zone}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select district" />
+                    <SelectValue placeholder={profile.zone ? "Select district" : "Select zone first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {districts.map((district) => (
+                    {wardData.districts.map((district) => (
                       <SelectItem key={district} value={district}>
                         {district}
                       </SelectItem>
@@ -623,13 +644,14 @@ const IndividualRegistration = () => {
                 <Label>Taluk</Label>
                 <Select
                   value={profile.taluk}
-                  onValueChange={(v) => updateProfile("taluk", v)}
+                  onValueChange={(v) => updateProfileCascade("taluk", v)}
+                  disabled={!profile.district}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select taluk" />
+                    <SelectValue placeholder={profile.district ? "Select taluk" : "Select district first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {taluks.map((taluk) => (
+                    {wardData.taluks.map((taluk) => (
                       <SelectItem key={taluk} value={taluk}>
                         {taluk}
                       </SelectItem>
@@ -663,18 +685,19 @@ const IndividualRegistration = () => {
                 </RadioGroup>
               </div>
 
-              {/* Municipal Type */}
+              {/* Hobali / Municipal Type */}
               <div className="space-y-2">
-                <Label>Select CMC / TMC / TP / GBA / MC</Label>
+                <Label>Hobali / CMC / TMC / TP / GBA</Label>
                 <Select
                   value={profile.municipalType}
-                  onValueChange={(v) => updateProfile("municipalType", v)}
+                  onValueChange={(v) => updateProfileCascade("municipalType", v)}
+                  disabled={!profile.taluk}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={profile.taluk ? "Select hobali/municipal" : "Select taluk first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {municipalTypes.map((type) => (
+                    {wardData.hobalis.map((type) => (
                       <SelectItem key={type} value={type}>
                         {type}
                       </SelectItem>
@@ -683,18 +706,19 @@ const IndividualRegistration = () => {
                 </Select>
               </div>
 
-              {/* Pattana Panchayathi */}
+              {/* Gram Panchayathi / Local Body */}
               <div className="space-y-2">
-                <Label>Select Pattana Panchayathi</Label>
+                <Label>Gram Panchayathi / Local Body</Label>
                 <Select
                   value={profile.pattanaPanchayathi}
-                  onValueChange={(v) => updateProfile("pattanaPanchayathi", v)}
+                  onValueChange={(v) => updateProfileCascade("pattanaPanchayathi", v)}
+                  disabled={!profile.municipalType}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select panchayathi" />
+                    <SelectValue placeholder={profile.municipalType ? "Select GP / local body" : "Select hobali first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {pattanaPanchayathis.map((pp) => (
+                    {wardData.gps.map((pp) => (
                       <SelectItem key={pp} value={pp}>
                         {pp}
                       </SelectItem>
@@ -703,20 +727,21 @@ const IndividualRegistration = () => {
                 </Select>
               </div>
 
-              {/* Ward No */}
+              {/* Village / Ward */}
               <div className="space-y-2">
-                <Label>Ward No</Label>
+                <Label>Village / Ward</Label>
                 <Select
                   value={profile.wardNo}
                   onValueChange={(v) => updateProfile("wardNo", v)}
+                  disabled={!profile.pattanaPanchayathi}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select ward" />
+                    <SelectValue placeholder={profile.pattanaPanchayathi ? "Select village/ward" : "Select GP first"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {wards.map((ward) => (
+                    {wardData.villages.map((ward) => (
                       <SelectItem key={ward} value={ward}>
-                        Ward {ward}
+                        {ward}
                       </SelectItem>
                     ))}
                   </SelectContent>
