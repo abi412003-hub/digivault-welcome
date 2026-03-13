@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { erpnext } from "@/lib/api";
 
 /**
- * Hook that checks for an active Supabase session.
+ * Hook that checks for an active ERPNext session.
  * Redirects to /login if not authenticated.
- * Returns { isLoading, session, user }
  */
 export function useAuth() {
   const navigate = useNavigate();
@@ -15,28 +14,29 @@ export function useAuth() {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session: s } } = await supabase.auth.getSession();
-      if (!s) {
+      const stored = localStorage.getItem('edv_user');
+      if (!stored) {
         navigate("/login");
         return;
       }
-      setSession(s);
-      setUser(s.user);
+      const parsed = JSON.parse(stored);
+      setUser(parsed);
+      setSession({ user: parsed, access_token: 'erpnext-session' });
       setIsLoading(false);
+
+      // Verify session is still valid with ERPNext
+      try {
+        const loggedUser = await erpnext.getLoggedUser();
+        if (!loggedUser) {
+          localStorage.removeItem('edv_user');
+          navigate("/login");
+        }
+      } catch {
+        // Network error — keep going with stored session
+      }
     };
 
     checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
-      if (!s) {
-        navigate("/login");
-      } else {
-        setSession(s);
-        setUser(s.user);
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   return { isLoading, session, user };

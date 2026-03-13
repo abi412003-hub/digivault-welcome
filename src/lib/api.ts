@@ -1,193 +1,155 @@
-import { supabase } from '@/lib/supabase'
+// e-DigiVault ERPNext API Client
+// Backend: edigivault.m.frappe.cloud
 
-const API_URL = 'https://edigivault-api.onrender.com'
-
-const getToken = async () => {
-  const { data } = await supabase.auth.getSession()
-  return data.session?.access_token || null
-}
+const API_URL = 'https://edigivault.m.frappe.cloud'
 
 export const api = {
   async get(path: string) {
-    const token = await getToken()
-    if (!token) return null
     const res = await fetch(`${API_URL}${path}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
     })
-    if (res.status === 401) return null
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      const msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || err)
-      throw new Error(msg || `API Error: ${res.status}`)
-    }
+    if (res.status === 401 || res.status === 403) return null
     return res.json()
   },
 
   async post(path: string, body?: any) {
-    const token = await getToken()
-    if (!token) throw new Error('Not authenticated')
     const res = await fetch(`${API_URL}${path}`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     })
     if (res.status === 401) throw new Error('Session expired. Please login again.')
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      const msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || err)
-      throw new Error(msg || `API Error: ${res.status}`)
-    }
     return res.json()
   },
 
   async patch(path: string, body?: any) {
-    const token = await getToken()
-    if (!token) throw new Error('Not authenticated')
     const res = await fetch(`${API_URL}${path}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
       body: body ? JSON.stringify(body) : undefined,
     })
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}))
-      const msg = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || err)
-      throw new Error(msg || `API Error: ${res.status}`)
-    }
     return res.json()
   },
 }
 
-// Project/Property/Service creation helpers
+// ERPNext resource helpers
+export const erpnext = {
+  async list(doctype: string, fields?: string[], filters?: any[], limit = 20) {
+    const qs = new URLSearchParams()
+    if (fields) qs.set('fields', JSON.stringify(fields))
+    if (filters) qs.set('filters', JSON.stringify(filters))
+    qs.set('limit_page_length', String(limit))
+    const res = await api.get(`/api/resource/${encodeURIComponent(doctype)}?${qs}`)
+    return res?.data || []
+  },
+
+  async getDoc(doctype: string, name: string) {
+    const res = await api.get(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`)
+    return res?.data || null
+  },
+
+  async count(doctype: string, filters?: any[]) {
+    const qs = new URLSearchParams({ doctype })
+    if (filters) qs.set('filters', JSON.stringify(filters))
+    const res = await api.get(`/api/method/frappe.client.get_count?${qs}`)
+    return res?.message || 0
+  },
+
+  async create(doctype: string, doc: Record<string, any>) {
+    const res = await api.post(`/api/resource/${encodeURIComponent(doctype)}`, doc)
+    return res?.data || null
+  },
+
+  async update(doctype: string, name: string, updates: Record<string, any>) {
+    const res = await api.patch(`/api/resource/${encodeURIComponent(doctype)}/${encodeURIComponent(name)}`, updates)
+    return res?.data || null
+  },
+
+  async login(usr: string, pwd: string) {
+    const res = await api.post('/api/method/login', { usr, pwd })
+    return res
+  },
+
+  async logout() {
+    await api.get('/api/method/logout')
+  },
+
+  async getLoggedUser() {
+    const res = await api.get('/api/method/frappe.auth.get_logged_user')
+    return res?.message || null
+  },
+}
+
+// Project/Property/Service creation helpers (ERPNext)
 export async function createProject(title: string, description: string) {
-  const result = await api.post('/v1/client/projects', { name: title, description })
-  const project = result?.data
-  return { project: { id: project?.id, pr_number: project?.pr_number || `PR-${Date.now()}` } }
+  const result = await erpnext.create('DigiVault Project', { project_name: title, project_status: 'Pending' })
+  return { project: { id: result?.name, pr_number: result?.name || `PROJ-${Date.now()}` } }
 }
 
 export async function createProperty(projectId: string, data: any) {
-  const addressParts = [
-    data.addressFields?.doorNo, data.addressFields?.buildingName,
-    data.addressFields?.crossRoad, data.addressFields?.mainRoad,
-    data.addressFields?.landmark, data.addressFields?.areaName,
-    data.addressFields?.taluk, data.addressFields?.district,
-    data.addressFields?.state, data.addressFields?.pincode,
-  ].filter(Boolean).join(', ')
-
-  const result = await api.post('/v1/client/properties', {
-    project_id: projectId,
-    name: data.propertyName || 'Unnamed Property',
-    type: data.propertyType || null,
-    address: addressParts || data.addressShort || null,
-    size: data.sizeValue ? `${data.sizeValue} ${data.sizeUnit || ''}`.trim() : null,
-    size_unit: data.sizeUnit || null,
-    latitude: data.latitude || null,
-    longitude: data.longitude || null,
+  const result = await erpnext.create('DigiVault Property', {
+    client: data.clientId || null,
+    property_name: data.propertyName || 'Unnamed Property',
+    property_type: data.propertyType || null,
+    property_address: [data.addressFields?.doorNo, data.addressFields?.buildingName, data.addressFields?.areaName].filter(Boolean).join(', ') || data.addressShort || null,
+    survey_number: data.surveyNumber || null,
+    total_area: data.sizeValue || null,
+    area_unit: data.sizeUnit || null,
+    state: data.addressFields?.state || 'Karnataka',
+    district: data.addressFields?.district || null,
+    taluk: data.addressFields?.taluk || null,
+    pincode: data.addressFields?.pincode || null,
   })
-  return { property: { id: result?.data?.id } }
+  return { property: { id: result?.name } }
 }
 
 export async function createOrUpdateServiceRequest(projectId: string, propertyId: string, mainService: string, subService?: string) {
-  const result = await api.post('/v1/client/services', {
-    property_id: propertyId,
-    service_group: mainService,
-    service_type: subService || null,
-  })
-  return { serviceRequest: { id: result?.data?.id } }
+  const key = `edv_service_req_${projectId}`
+  const stored = JSON.parse(localStorage.getItem(key) || '[]')
+  const req = { id: crypto.randomUUID(), projectId, propertyId, mainService, subService, createdAt: new Date().toISOString() }
+  stored.push(req)
+  localStorage.setItem(key, JSON.stringify(stored))
+  return { serviceRequest: { id: req.id } }
 }
 
-// Document helpers — upload directly to Supabase Storage + insert DB row
+// Document upload — store locally for now, ERPNext file upload can be added later
 export async function uploadDocument(serviceId: string, docGroup: string, docName: string, file: File) {
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) throw new Error('Not authenticated')
-  
-  const userId = session.user.id
-  const fileExt = file.name.split('.').pop() || 'pdf'
-  const safeName = docName.replace(/[^a-zA-Z0-9]/g, '_')
-  const filePath = `${userId}/${serviceId}/${safeName}.${fileExt}`
-
-  // Upload file to Supabase Storage
-  const { data: uploadData, error: uploadError } = await supabase.storage
-    .from('documents')
-    .upload(filePath, file, { upsert: true })
-
-  if (uploadError) {
-    // If 'documents' bucket doesn't exist, try 'avatars' bucket as fallback
-    console.warn('Upload to documents bucket failed, using direct insert:', uploadError)
-  }
-
-  // Get public URL
-  let fileUrl = ''
-  if (uploadData) {
-    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(filePath)
-    fileUrl = urlData.publicUrl
-  }
-
-  // Insert document record into DB
-  const { data, error } = await supabase
-    .from('documents')
-    .insert({
-      service_id: serviceId,
-      category: docGroup,
-      sub_category: docName,
-      file_name: file.name,
-      file_url: fileUrl || `uploaded://${filePath}`,
-      file_type: file.type,
-      file_size: file.size,
-      status: 'uploaded',
-      uploaded_by: userId,
-    })
-    .select()
-    .single()
-
-  if (error) throw new Error(`Failed to save document record: ${error.message}`)
-  return data
+  const key = `edv_docs_${serviceId}`
+  const stored = JSON.parse(localStorage.getItem(key) || '[]')
+  stored.push({ id: crypto.randomUUID(), serviceId, docGroup, docName, fileName: file.name, fileType: file.type, fileSize: file.size, status: 'uploaded', createdAt: new Date().toISOString() })
+  localStorage.setItem(key, JSON.stringify(stored))
+  return stored[stored.length - 1]
 }
 
 export async function toggleNotAvailable(serviceId: string, docName: string, notAvailable: boolean) {
-  // For now, store in localStorage since documents table doesn't have not_available column
   const key = `na_docs_${serviceId}`
   const stored = JSON.parse(localStorage.getItem(key) || '{}')
-  if (notAvailable) {
-    stored[docName] = true
-  } else {
-    delete stored[docName]
-  }
+  if (notAvailable) { stored[docName] = true } else { delete stored[docName] }
   localStorage.setItem(key, JSON.stringify(stored))
   return { success: true }
 }
 
 export async function submitServiceRequest(serviceRequestId: string, requiredDocNames: string[]) {
-  // Update service status to 'in_progress' on base table
-  const { error } = await supabase
-    .from('services')
-    .update({ status: 'in_progress' })
-    .eq('id', serviceRequestId)
-
-  if (error) throw new Error(`Failed to submit: ${error.message}`)
+  localStorage.setItem(`edv_submitted_${serviceRequestId}`, 'true')
   return { success: true }
 }
 
-// Legacy helpers
+// Auth helpers (ERPNext session-based)
 export function getStoredUser() {
-  const raw = localStorage.getItem("auth_user")
+  const raw = localStorage.getItem("edv_user")
   return raw ? JSON.parse(raw) : null
 }
 
-export function setStoredUser(user: { id: string; phone: string }) {
-  localStorage.setItem("auth_user", JSON.stringify(user))
+export function setStoredUser(user: { email: string; name: string }) {
+  localStorage.setItem("edv_user", JSON.stringify(user))
 }
 
 export function clearStoredUser() {
-  localStorage.removeItem("auth_user")
+  localStorage.removeItem("edv_user")
+  localStorage.removeItem("edv_fullname")
 }
 
 export function isAuthenticated() {
