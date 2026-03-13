@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
+import { erpnext } from "@/lib/api";
 import { Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
-  const [phone, setPhone] = useState("");
-  const [otp, setOtp] = useState("");
-  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -15,100 +14,45 @@ const Login = () => {
   // If already logged in, go to dashboard
   useEffect(() => {
     const check = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) navigate('/dashboard', { replace: true });
+      const stored = localStorage.getItem('edv_user');
+      if (stored) navigate('/dashboard', { replace: true });
     };
     check();
   }, [navigate]);
 
-  const formatPhoneNumber = (phoneNumber: string) => {
-    // Remove all non-digit characters
-    const digits = phoneNumber.replace(/\D/g, "");
-    // If it doesn't start with +, assume it needs country code
-    if (!phoneNumber.startsWith("+")) {
-      // Default to +91 for India if no country code
-      return `+91${digits}`;
-    }
-    return `+${digits}`;
-  };
-
-  const handleSendOtp = async () => {
-    if (!phone.trim()) {
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
       toast({
         title: "Error",
-        description: "Please enter a valid mobile number",
+        description: "Please enter email and password",
         variant: "destructive",
       });
       return;
     }
 
     setIsLoading(true);
-    const formattedPhone = formatPhoneNumber(phone);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        phone: formattedPhone,
-      });
+      const res = await erpnext.login(email, password);
 
-      if (error) throw error;
-
-      setIsOtpSent(true);
-      toast({
-        title: "OTP Sent",
-        description: "Please check your phone for the verification code",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send OTP",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter the OTP",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    const formattedPhone = formatPhoneNumber(phone);
-
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        phone: formattedPhone,
-        token: otp,
-        type: "sms",
-      });
-
-      if (error) throw error;
-
-      if (data.user) {
-        // Ensure profile row exists in users table
-        try {
-          await supabase.rpc('ensure_profile');
-        } catch (e) {
-          console.error('Profile ensure error:', e);
-        }
+      if (res.message === "Logged In") {
+        // Store user info
+        localStorage.setItem("edv_user", JSON.stringify({ email, name: res.full_name || email }));
+        localStorage.setItem("edv_fullname", res.full_name || email);
 
         toast({
           title: "Success",
-          description: "Welcome to e-DigiVault!",
+          description: `Welcome to e-DigiVault, ${res.full_name || 'User'}!`,
         });
 
         navigate("/dashboard");
+      } else {
+        throw new Error(res.message || "Invalid credentials");
       }
     } catch (error: any) {
       toast({
-        title: "Error",
-        description: error.message || "Failed to verify OTP",
+        title: "Login Failed",
+        description: error.message || "Invalid email or password",
         variant: "destructive",
       });
     } finally {
@@ -136,79 +80,61 @@ const Login = () => {
 
         {/* Form */}
         <div className="space-y-6">
-          {!isOtpSent ? (
-            <>
-              <div>
-                <label
-                  htmlFor="phone"
-                  className="block text-sm font-medium text-foreground mb-2"
-                >
-                  Mobile Number
-                </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="Enter your mobile number"
-                  className="input-field"
-                  disabled={isLoading}
-                />
-              </div>
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-foreground mb-2"
+            >
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="input-field"
+              disabled={isLoading}
+            />
+          </div>
 
-              <button
-                onClick={handleSendOtp}
-                disabled={isLoading}
-                className="btn-primary"
-              >
-                {isLoading ? "Sending..." : "Send OTP"}
-              </button>
-            </>
-          ) : (
-            <>
-              <div>
-                <label
-                  htmlFor="otp"
-                  className="block text-sm font-medium text-foreground mb-2"
-                >
-                  Enter OTP
-                </label>
-                <input
-                  id="otp"
-                  type="text"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  placeholder="Enter 6-digit OTP"
-                  className="input-field text-center tracking-widest text-lg"
-                  maxLength={6}
-                  disabled={isLoading}
-                />
-              </div>
+          <div>
+            <label
+              htmlFor="password"
+              className="block text-sm font-medium text-foreground mb-2"
+            >
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter password"
+              className="input-field"
+              disabled={isLoading}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            />
+          </div>
 
-              <button
-                onClick={handleVerifyOtp}
-                disabled={isLoading}
-                className="btn-primary"
-              >
-                {isLoading ? "Verifying..." : "Verify OTP"}
-              </button>
+          <button
+            onClick={handleLogin}
+            disabled={isLoading}
+            className="btn-primary"
+          >
+            {isLoading ? "Signing in..." : "Sign In"}
+          </button>
+        </div>
 
-              <button
-                onClick={() => {
-                  setIsOtpSent(false);
-                  setOtp("");
-                }}
-                className="w-full text-center text-muted-foreground text-sm hover:text-foreground transition-colors"
-                disabled={isLoading}
-              >
-                Change number
-              </button>
-            </>
-          )}
+        {/* Demo accounts info */}
+        <div className="mt-8 p-4 bg-muted/50 rounded-lg">
+          <p className="text-xs text-muted-foreground text-center mb-2 font-medium">Demo accounts</p>
+          <p className="text-xs text-muted-foreground text-center">client1@demo.com / Chilume@123</p>
+          <p className="text-xs text-muted-foreground text-center">aravindh@chilume.com / Chilume@123</p>
         </div>
 
         {/* Register Link */}
-        <p className="text-center mt-8 text-muted-foreground">
+        <p className="text-center mt-6 text-muted-foreground">
           Don't have an account?{" "}
           <a href="/" className="link-text">
             Register
