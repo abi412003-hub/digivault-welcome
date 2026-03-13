@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/lib/supabase";
-import { api } from "@/lib/api";
+import { erpnext } from "@/lib/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +14,10 @@ import {
   Receipt,
   Bell,
   MessageCircle,
-  Building2
+  Building2,
+  MapPin,
+  Users,
+  FolderOpen
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import BottomNav from "@/components/BottomNav";
@@ -28,82 +30,74 @@ const actionButtons = [
 
 const getStatusBadgeStyles = (status: string) => {
   switch (status) {
-    case "Completed":
+    case "Completed": case "Approved": case "Paid":
       return "bg-green-100 text-green-700 hover:bg-green-100";
-    case "Ongoing":
+    case "In Progress": case "Assigned": case "Processing":
       return "bg-blue-100 text-blue-700 hover:bg-blue-100";
-    case "Pending":
+    case "Pending": case "Draft": case "Pending For Approval":
       return "bg-orange-100 text-orange-700 hover:bg-orange-100";
+    case "Rejected": case "Cancelled":
+      return "bg-red-100 text-red-700 hover:bg-red-100";
     default:
-      return "";
+      return "bg-gray-100 text-gray-700 hover:bg-gray-100";
   }
 };
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [statusCounts, setStatusCounts] = useState({ completed: 0, ongoing: 0, pending: 0 });
-  const [projectCount, setProjectCount] = useState(0);
-  const [activities, setActivities] = useState<any[]>([]);
+  const [userName, setUserName] = useState("");
+  const [stats, setStats] = useState({ projects: 0, properties: 0, estimates: 0, leads: 0, services: 0 });
+  const [recentProjects, setRecentProjects] = useState<any[]>([]);
+  const [recentEstimates, setRecentEstimates] = useState<any[]>([]);
 
   useEffect(() => {
     const init = async () => {
       // Check auth
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate("/");
+      const stored = localStorage.getItem('edv_user');
+      if (!stored) {
+        navigate("/login");
         return;
+      }
+      const user = JSON.parse(stored);
+      setUserName(user.name || user.email || "User");
+
+      // Fetch all data from ERPNext in parallel
+      try {
+        const [projCount, propCount, estCount, leadCount, svcCount, projects, estimates] = await Promise.all([
+          erpnext.count("DigiVault Project"),
+          erpnext.count("DigiVault Property"),
+          erpnext.count("DigiVault Estimate"),
+          erpnext.count("DigiVault Lead"),
+          erpnext.count("DigiVault Service"),
+          erpnext.list("DigiVault Project", ["name", "project_name", "project_status", "client", "creation"], null, 5),
+          erpnext.list("DigiVault Estimate", ["name", "client", "service", "estimate_status", "total_price", "estimate_date"], null, 5),
+        ]);
+
+        setStats({
+          projects: projCount,
+          properties: propCount,
+          estimates: estCount,
+          leads: leadCount,
+          services: svcCount,
+        });
+        setRecentProjects(projects || []);
+        setRecentEstimates(estimates || []);
+      } catch (e) {
+        console.log("ERPNext fetch error:", e);
       }
 
       setIsLoading(false);
-
-      // Fetch data from API (non-blocking)
-      try {
-        const [dashRes, projRes] = await Promise.all([
-          api.get("/v1/client/dashboard").catch(() => null),
-          api.get("/v1/client/projects").catch(() => null),
-        ]);
-        
-        if (dashRes?.data) {
-          setStatusCounts({
-            completed: dashRes.data.completed_services || 0,
-            ongoing: dashRes.data.ongoing_services || 0,
-            pending: dashRes.data.pending_services || 0,
-          });
-          if (dashRes.data.recent_activity) {
-            setActivities(dashRes.data.recent_activity.map((a: any) => ({
-              id: a.id,
-              title: a.title,
-              date: new Date(a.created_at).toLocaleDateString(),
-              status: "Ongoing",
-            })));
-          }
-        }
-        
-        if (projRes?.data && Array.isArray(projRes.data)) {
-          setProjectCount(projRes.data.length);
-        }
-      } catch (e) {
-        console.log("API fetch skipped:", e);
-        // Dashboard still shows with zeros — that's fine
-      }
     };
 
     init();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_OUT" || !session) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
   }, [navigate]);
 
   const statusCards = [
-    { label: "Completed", count: statusCounts.completed, icon: CheckCircle, color: "text-green-600", bg: "bg-green-100" },
-    { label: "Ongoing", count: statusCounts.ongoing, icon: Hourglass, color: "text-blue-600", bg: "bg-blue-100" },
-    { label: "Pending", count: statusCounts.pending, icon: Clock, color: "text-orange-500", bg: "bg-orange-100" },
+    { label: "Projects", count: stats.projects, icon: Building2, color: "text-blue-600", bg: "bg-blue-50" },
+    { label: "Properties", count: stats.properties, icon: MapPin, color: "text-green-600", bg: "bg-green-50" },
+    { label: "Estimates", count: stats.estimates, icon: Calculator, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "Leads", count: stats.leads, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
   ];
 
   if (isLoading) {
@@ -119,61 +113,41 @@ const Dashboard = () => {
       <div className="p-4 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+          <div>
+            <p className="text-sm text-muted-foreground">Welcome back,</p>
+            <h1 className="text-2xl font-bold text-foreground">{userName}</h1>
+          </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5 text-muted-foreground" />
             </Button>
-            <Button variant="ghost" size="icon">
-              <MessageCircle className="h-5 w-5 text-muted-foreground" />
-            </Button>
             <Avatar className="h-9 w-9">
               <AvatarImage src="" alt="Profile" />
               <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-                U
+                {userName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           </div>
         </div>
 
-        {/* Status Section */}
-        <div className="space-y-3">
-          <h2 className="text-sm font-medium text-muted-foreground">Status</h2>
-          <div className="grid grid-cols-3 gap-3">
-            {statusCards.map((card) => (
-              <Card key={card.label} className={`shadow-sm border-0 ${card.bg}`}>
-                <CardContent className="p-4 flex flex-col items-center text-center">
-                  <card.icon className={`w-6 h-6 ${card.color} mb-2`} />
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {statusCards.map((card) => (
+            <Card key={card.label} className={`shadow-sm border-0 ${card.bg}`}>
+              <CardContent className="p-4 flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full bg-white/70 flex items-center justify-center`}>
+                  <card.icon className={`w-5 h-5 ${card.color}`} />
+                </div>
+                <div>
                   <span className="text-2xl font-bold text-foreground">{card.count}</span>
-                  <span className="text-xs text-muted-foreground mt-1">{card.label}</span>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <p className="text-xs text-muted-foreground">{card.label}</p>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Projects Card */}
-        <Card 
-          className="shadow-sm border-0 cursor-pointer hover:shadow-md transition-shadow bg-card"
-          onClick={() => navigate("/projects")}
-        >
-          <CardContent className="p-4 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-primary" />
-              </div>
-              <span className="font-semibold text-foreground">Projects</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-foreground">
-                {projectCount.toString().padStart(2, "0")}
-              </span>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Action Buttons */}
+        {/* Quick Actions */}
         <div className="grid grid-cols-3 gap-3">
           {actionButtons.map((action) => (
             <Button
@@ -188,38 +162,97 @@ const Dashboard = () => {
           ))}
         </div>
 
-        {/* All Activity Section */}
+        {/* Recent Projects */}
         <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-foreground">All Activity</h2>
-          <Card className="shadow-sm border-0 overflow-hidden bg-card">
-            <CardContent className="p-0">
-              {activities.length === 0 ? (
-                <div className="p-8 text-center">
-                  <p className="text-muted-foreground">No activity yet</p>
-                </div>
-              ) : (
-                <div className="divide-y divide-border">
-                  <div className="p-3 bg-muted/50 grid grid-cols-3 gap-2 text-xs font-medium text-muted-foreground">
-                    <span>Document Title</span>
-                    <span className="text-center">Date</span>
-                    <span className="text-right">Status</span>
-                  </div>
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="p-3 grid grid-cols-3 gap-2 items-center">
-                      <p className="font-medium text-foreground text-sm truncate">{activity.title}</p>
-                      <p className="text-xs text-muted-foreground text-center">{activity.date}</p>
-                      <div className="flex justify-end">
-                        <Badge className={`text-xs ${getStatusBadgeStyles(activity.status)}`}>
-                          {activity.status}
-                        </Badge>
-                      </div>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Recent projects</h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/projects")} className="text-primary">
+              View all <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+          
+          {recentProjects.length === 0 ? (
+            <Card className="shadow-sm border-0">
+              <CardContent className="p-6 text-center">
+                <FolderOpen className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No projects yet</p>
+              </CardContent>
+            </Card>
+          ) : (
+            recentProjects.map((p) => (
+              <Card key={p.name} className="shadow-sm border-0 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate("/projects")}>
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                      <Building2 className="w-5 h-5 text-primary" />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{p.project_name}</p>
+                      <p className="text-xs text-muted-foreground">{p.name} • {p.client || ""}</p>
+                    </div>
+                  </div>
+                  <Badge className={`text-xs ${getStatusBadgeStyles(p.project_status)}`}>
+                    {p.project_status || "Pending"}
+                  </Badge>
+                </CardContent>
+              </Card>
+            ))
+          )}
         </div>
+
+        {/* Recent Estimates */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Recent estimates</h2>
+            <Button variant="ghost" size="sm" onClick={() => navigate("/estimate")} className="text-primary">
+              View all <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+          
+          {recentEstimates.length === 0 ? (
+            <Card className="shadow-sm border-0">
+              <CardContent className="p-6 text-center">
+                <Calculator className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                <p className="text-muted-foreground text-sm">No estimates yet</p>
+              </CardContent>
+            </Card>
+          ) : (
+            recentEstimates.map((e) => (
+              <Card key={e.name} className="shadow-sm border-0 cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="p-4 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-foreground text-sm">{e.name}</p>
+                    <p className="text-xs text-muted-foreground">{e.service} • {e.estimate_date}</p>
+                  </div>
+                  <div className="text-right">
+                    <Badge className={`text-xs ${getStatusBadgeStyles(e.estimate_status)}`}>
+                      {e.estimate_status}
+                    </Badge>
+                    {e.total_price && (
+                      <p className="text-sm font-bold text-primary mt-1">₹{Number(e.total_price).toLocaleString()}</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+
+        {/* Services count */}
+        <Card className="shadow-sm border-0 bg-gradient-to-r from-primary/5 to-primary/10">
+          <CardContent className="p-4 flex items-center justify-between" onClick={() => navigate("/service-selection")}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+                <FileText className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">{stats.services} Services Available</p>
+                <p className="text-xs text-muted-foreground">Browse our service catalog</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
       </div>
 
       <BottomNav />
