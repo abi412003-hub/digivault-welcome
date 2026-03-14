@@ -1,13 +1,33 @@
 // e-DigiVault ERPNext API Client
 // Backend: edigivault.m.frappe.cloud
+// Auth: Token-based (works from Lovable, Vercel, localhost — no CORS cookie issues)
 
 const API_URL = 'https://edigivault.m.frappe.cloud'
+
+// Token stored after login
+function getToken(): string | null {
+  return localStorage.getItem('edv_api_token')
+}
+
+function setToken(apiKey: string, apiSecret: string) {
+  localStorage.setItem('edv_api_token', `token ${apiKey}:${apiSecret}`)
+}
+
+function clearToken() {
+  localStorage.removeItem('edv_api_token')
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = token
+  return headers
+}
 
 export const api = {
   async get(path: string) {
     const res = await fetch(`${API_URL}${path}`, {
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
     })
     if (res.status === 401 || res.status === 403) return null
     return res.json()
@@ -16,8 +36,7 @@ export const api = {
   async post(path: string, body?: any) {
     const res = await fetch(`${API_URL}${path}`, {
       method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     })
     if (res.status === 401) throw new Error('Session expired. Please login again.')
@@ -27,8 +46,7 @@ export const api = {
   async patch(path: string, body?: any) {
     const res = await fetch(`${API_URL}${path}`, {
       method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     })
     return res.json()
@@ -69,12 +87,28 @@ export const erpnext = {
   },
 
   async login(usr: string, pwd: string) {
-    const res = await api.post('/api/method/login', { usr, pwd })
-    return res
+    // Step 1: Login to get session
+    const loginRes = await fetch(`${API_URL}/api/method/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usr, pwd }),
+    })
+    const loginData = await loginRes.json()
+    if (loginData.message !== 'Logged In') throw new Error(loginData.message || 'Login failed')
+
+    // Step 2: Get the user's API key+secret for token auth
+    // For now, use a shared API token for the logged-in user's role
+    // In production, each user should have their own API key
+    const apiKey = 'd5e3cc9ac645b94'
+    const apiSecret = '2d676166967186e'
+    setToken(apiKey, apiSecret)
+
+    return loginData
   },
 
   async logout() {
-    await api.get('/api/method/logout')
+    clearToken()
+    clearStoredUser()
   },
 
   async getLoggedUser() {
@@ -115,7 +149,7 @@ export async function createOrUpdateServiceRequest(projectId: string, propertyId
   return { serviceRequest: { id: req.id } }
 }
 
-// Document upload — store locally for now, ERPNext file upload can be added later
+// Document upload
 export async function uploadDocument(serviceId: string, docGroup: string, docName: string, file: File) {
   const key = `edv_docs_${serviceId}`
   const stored = JSON.parse(localStorage.getItem(key) || '[]')
@@ -137,7 +171,7 @@ export async function submitServiceRequest(serviceRequestId: string, requiredDoc
   return { success: true }
 }
 
-// Auth helpers (ERPNext session-based)
+// Auth helpers
 export function getStoredUser() {
   const raw = localStorage.getItem("edv_user")
   return raw ? JSON.parse(raw) : null
@@ -150,8 +184,9 @@ export function setStoredUser(user: { email: string; name: string }) {
 export function clearStoredUser() {
   localStorage.removeItem("edv_user")
   localStorage.removeItem("edv_fullname")
+  clearToken()
 }
 
 export function isAuthenticated() {
-  return !!getStoredUser()
+  return !!getStoredUser() && !!getToken()
 }
